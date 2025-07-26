@@ -43,7 +43,15 @@ export default function Home() {
     const savedGame = localStorage.getItem('cop-clicker-save');
     if (savedGame) {
       try {
-        setGameState(JSON.parse(savedGame));
+        const loadedState = JSON.parse(savedGame);
+        // Recalculate values to ensure consistency
+        const rankIndex = RANKS.findIndex(rank => rank.name === loadedState.rank);
+        const rankMultiplier = rankIndex >= 0 ? 1 + (rankIndex * 0.25) : 1;
+        
+        loadedState.clickValue = Math.floor((1 + loadedState.upgrades.equipment + (loadedState.upgrades.training * 2)) * rankMultiplier);
+        loadedState.passiveIncome = Math.floor(loadedState.upgrades.partner * rankMultiplier);
+        
+        setGameState(loadedState);
       } catch (e) {
         console.error('Failed to load save:', e);
       }
@@ -60,7 +68,7 @@ export default function Home() {
   }, [gameState]);
 
   useEffect(() => {
-    if (gameState.passiveIncome > 0) {
+    if (isLoaded && gameState.passiveIncome > 0) {
       const passiveTimer = setInterval(() => {
         setGameState(prev => ({
           ...prev,
@@ -70,7 +78,7 @@ export default function Home() {
 
       return () => clearInterval(passiveTimer);
     }
-  }, [gameState.passiveIncome]);
+  }, [gameState.passiveIncome, isLoaded]);
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     setGameState(prev => ({
@@ -134,12 +142,17 @@ export default function Home() {
 
         const rankMultiplier = getRankMultiplier();
 
-        if (upgradeType === 'equipment') {
-          newState.clickValue = Math.floor((1 + newState.upgrades.equipment) * rankMultiplier);
-        } else if (upgradeType === 'training') {
-          newState.clickValue = Math.floor((1 + newState.upgrades.equipment + (newState.upgrades.training * 2)) * rankMultiplier);
-        } else if (upgradeType === 'partner') {
-          newState.passiveIncome = Math.floor(newState.upgrades.partner * rankMultiplier);
+        // Always recalculate both click value and passive income with all upgrades
+        newState.clickValue = Math.floor((1 + newState.upgrades.equipment + (newState.upgrades.training * 2)) * rankMultiplier);
+        newState.passiveIncome = Math.floor(newState.upgrades.partner * rankMultiplier);
+        
+        // Debug log for partner upgrades
+        if (upgradeType === 'partner') {
+          console.log('Partner upgrade bought:', {
+            partnerLevel: newState.upgrades.partner,
+            rankMultiplier,
+            calculatedPassiveIncome: newState.passiveIncome
+          });
         }
 
         return newState;
