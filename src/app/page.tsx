@@ -11,6 +11,10 @@ interface GameState {
     equipment: number;
     training: number;
     partner: number;
+    patrol: number;
+    investigation: number;
+    precinct: number;
+    automation: number;
   };
 }
 
@@ -32,7 +36,11 @@ export default function Home() {
     upgrades: {
       equipment: 0,
       training: 0,
-      partner: 0
+      partner: 0,
+      patrol: 0,
+      investigation: 0,
+      precinct: 0,
+      automation: 0
     }
   });
 
@@ -48,7 +56,13 @@ export default function Home() {
         
         // Ensure all required properties exist
         if (!loadedState.upgrades) {
-          loadedState.upgrades = { equipment: 0, training: 0, partner: 0 };
+          loadedState.upgrades = { equipment: 0, training: 0, partner: 0, patrol: 0, investigation: 0, precinct: 0, automation: 0 };
+        } else {
+          // Add missing upgrade properties for backward compatibility
+          if (loadedState.upgrades.patrol === undefined) loadedState.upgrades.patrol = 0;
+          if (loadedState.upgrades.investigation === undefined) loadedState.upgrades.investigation = 0;
+          if (loadedState.upgrades.precinct === undefined) loadedState.upgrades.precinct = 0;
+          if (loadedState.upgrades.automation === undefined) loadedState.upgrades.automation = 0;
         }
         if (!loadedState.rank) {
           loadedState.rank = RANKS[0].name;
@@ -58,8 +72,21 @@ export default function Home() {
         const rankIndex = RANKS.findIndex(rank => rank.name === loadedState.rank);
         const rankMultiplier = rankIndex >= 0 ? 1 + (rankIndex * 0.25) : 1;
         
-        loadedState.clickValue = Math.floor((1 + loadedState.upgrades.equipment + (loadedState.upgrades.training * 2)) * rankMultiplier);
-        loadedState.passiveIncome = Math.floor(loadedState.upgrades.partner * rankMultiplier);
+        // Calculate click value
+        const baseClickValue = 1;
+        const equipmentBonus = loadedState.upgrades.equipment * 1;
+        const trainingBonus = loadedState.upgrades.training * 2;
+        loadedState.clickValue = Math.floor((baseClickValue + equipmentBonus + trainingBonus) * rankMultiplier);
+        
+        // Calculate passive income (much more generous)
+        const partnerIncome = loadedState.upgrades.partner * 1;
+        const patrolIncome = loadedState.upgrades.patrol * 3;
+        const investigationIncome = loadedState.upgrades.investigation * 12;
+        const precinctIncome = loadedState.upgrades.precinct * 50;
+        const automationBonus = loadedState.upgrades.automation > 0 ? (1 + loadedState.upgrades.automation * 0.5) : 1;
+        
+        const totalPassiveIncome = (partnerIncome + patrolIncome + investigationIncome + precinctIncome) * automationBonus;
+        loadedState.passiveIncome = Math.floor(totalPassiveIncome * rankMultiplier);
         
         setGameState(loadedState);
       } catch (e) {
@@ -142,10 +169,28 @@ export default function Home() {
   const getUpgradeCost = (upgradeType: string, currentLevel: number) => {
     const baseCosts = {
       equipment: 10,
-      training: 50,
-      partner: 100
+      training: 25,
+      partner: 15,      // Much cheaper for first passive income
+      patrol: 50,
+      investigation: 200,
+      precinct: 1000,
+      automation: 5000
     };
-    return Math.floor(baseCosts[upgradeType as keyof typeof baseCosts] * Math.pow(1.5, currentLevel));
+    
+    const scalingFactors = {
+      equipment: 1.4,   // Gentler scaling
+      training: 1.6,
+      partner: 1.3,     // Very gentle scaling for early passive
+      patrol: 1.5,
+      investigation: 1.7,
+      precinct: 2.0,
+      automation: 2.5
+    };
+    
+    const baseCost = baseCosts[upgradeType as keyof typeof baseCosts] || 10;
+    const scaling = scalingFactors[upgradeType as keyof typeof scalingFactors] || 1.5;
+    
+    return Math.floor(baseCost * Math.pow(scaling, currentLevel));
   };
 
   const getRankMultiplier = () => {
@@ -173,13 +218,17 @@ export default function Home() {
         upgrades: {
           equipment: 0,
           training: 0,
-          partner: 0
+          partner: 0,
+          patrol: 0,
+          investigation: 0,
+          precinct: 0,
+          automation: 0
         }
       });
     }
   };
 
-  const buyUpgrade = (upgradeType: 'equipment' | 'training' | 'partner') => {
+  const buyUpgrade = (upgradeType: 'equipment' | 'training' | 'partner' | 'patrol' | 'investigation' | 'precinct' | 'automation') => {
     const cost = getUpgradeCost(upgradeType, gameState.upgrades[upgradeType]);
     
     if (gameState.respectPoints >= cost) {
@@ -195,10 +244,21 @@ export default function Home() {
 
         const rankMultiplier = getRankMultiplier();
 
-        // Always recalculate both click value and passive income with all upgrades
-        newState.clickValue = Math.floor((1 + newState.upgrades.equipment + (newState.upgrades.training * 2)) * rankMultiplier);
-        newState.passiveIncome = Math.floor(newState.upgrades.partner * rankMultiplier);
+        // Calculate click value
+        const baseClickValue = 1;
+        const equipmentBonus = newState.upgrades.equipment * 1;
+        const trainingBonus = newState.upgrades.training * 2;
+        newState.clickValue = Math.floor((baseClickValue + equipmentBonus + trainingBonus) * rankMultiplier);
         
+        // Calculate passive income (much more generous)
+        const partnerIncome = newState.upgrades.partner * 1;
+        const patrolIncome = newState.upgrades.patrol * 3;
+        const investigationIncome = newState.upgrades.investigation * 12;
+        const precinctIncome = newState.upgrades.precinct * 50;
+        const automationBonus = newState.upgrades.automation > 0 ? (1 + newState.upgrades.automation * 0.5) : 1;
+        
+        const totalPassiveIncome = (partnerIncome + patrolIncome + investigationIncome + precinctIncome) * automationBonus;
+        newState.passiveIncome = Math.floor(totalPassiveIncome * rankMultiplier);
 
         return newState;
       });
@@ -208,7 +268,7 @@ export default function Home() {
     }
   };
 
-  const canAfford = (upgradeType: 'equipment' | 'training' | 'partner') => {
+  const canAfford = (upgradeType: 'equipment' | 'training' | 'partner' | 'patrol' | 'investigation' | 'precinct' | 'automation') => {
     if (!gameState?.upgrades) return false;
     return gameState.respectPoints >= getUpgradeCost(upgradeType, gameState.upgrades[upgradeType]);
   };
@@ -224,8 +284,20 @@ export default function Home() {
         const rankMultiplier = 1 + (nextRankIndex * 0.25);
         
         // Recalculate values with new rank bonus
-        newState.clickValue = Math.floor((1 + newState.upgrades.equipment + (newState.upgrades.training * 2)) * rankMultiplier);
-        newState.passiveIncome = Math.floor(newState.upgrades.partner * rankMultiplier);
+        const baseClickValue = 1;
+        const equipmentBonus = newState.upgrades.equipment * 1;
+        const trainingBonus = newState.upgrades.training * 2;
+        newState.clickValue = Math.floor((baseClickValue + equipmentBonus + trainingBonus) * rankMultiplier);
+        
+        // Calculate passive income (much more generous)
+        const partnerIncome = newState.upgrades.partner * 1;
+        const patrolIncome = newState.upgrades.patrol * 3;
+        const investigationIncome = newState.upgrades.investigation * 12;
+        const precinctIncome = newState.upgrades.precinct * 50;
+        const automationBonus = newState.upgrades.automation > 0 ? (1 + newState.upgrades.automation * 0.5) : 1;
+        
+        const totalPassiveIncome = (partnerIncome + patrolIncome + investigationIncome + precinctIncome) * automationBonus;
+        newState.passiveIncome = Math.floor(totalPassiveIncome * rankMultiplier);
         
         return newState;
       });
@@ -349,48 +421,114 @@ export default function Home() {
 
           <div className="space-y-6">
             <div className="bg-blue-800/50 rounded-lg p-6 backdrop-blur-sm border border-blue-600/30">
-              <h3 className="text-xl font-bold mb-4">Upgrades</h3>
-              <div className="space-y-3">
+              <h3 className="text-xl font-bold mb-4">👤 Click Upgrades</h3>
+              <div className="space-y-2">
                 <button 
                   onClick={() => buyUpgrade('equipment')}
                   disabled={!canAfford('equipment')}
-                  className={`w-full text-left p-3 rounded border transition-colors ${
+                  className={`w-full text-left p-2 rounded border transition-colors ${
                     canAfford('equipment') 
                       ? 'bg-blue-700/50 hover:bg-blue-600/50 border-blue-500/30 cursor-pointer' 
                       : 'bg-gray-600/50 border-gray-500/30 cursor-not-allowed opacity-50'
                   }`}
                 >
-                  <div className="font-semibold">Better Equipment ({gameState.upgrades.equipment})</div>
-                  <div className="text-sm text-blue-200">+1 click value</div>
-                  <div className="text-sm text-yellow-300">Cost: {formatNumber(getUpgradeCost('equipment', gameState.upgrades.equipment))} RP</div>
+                  <div className="font-semibold text-sm">🔧 Equipment ({gameState.upgrades.equipment})</div>
+                  <div className="text-xs text-blue-200">+1 click value</div>
+                  <div className="text-xs text-yellow-300">Cost: {formatNumber(getUpgradeCost('equipment', gameState.upgrades.equipment))} RP</div>
                 </button>
                 
                 <button 
                   onClick={() => buyUpgrade('training')}
                   disabled={!canAfford('training')}
-                  className={`w-full text-left p-3 rounded border transition-colors ${
+                  className={`w-full text-left p-2 rounded border transition-colors ${
                     canAfford('training') 
                       ? 'bg-blue-700/50 hover:bg-blue-600/50 border-blue-500/30 cursor-pointer' 
                       : 'bg-gray-600/50 border-gray-500/30 cursor-not-allowed opacity-50'
                   }`}
                 >
-                  <div className="font-semibold">Training Course ({gameState.upgrades.training})</div>
-                  <div className="text-sm text-blue-200">+2 click value</div>
-                  <div className="text-sm text-yellow-300">Cost: {formatNumber(getUpgradeCost('training', gameState.upgrades.training))} RP</div>
+                  <div className="font-semibold text-sm">📚 Training ({gameState.upgrades.training})</div>
+                  <div className="text-xs text-blue-200">+2 click value</div>
+                  <div className="text-xs text-yellow-300">Cost: {formatNumber(getUpgradeCost('training', gameState.upgrades.training))} RP</div>
                 </button>
-                
+              </div>
+            </div>
+
+            <div className="bg-green-800/50 rounded-lg p-6 backdrop-blur-sm border border-green-600/30">
+              <h3 className="text-xl font-bold mb-4">💰 Passive Income</h3>
+              <div className="space-y-2">
                 <button 
                   onClick={() => buyUpgrade('partner')}
                   disabled={!canAfford('partner')}
-                  className={`w-full text-left p-3 rounded border transition-colors ${
+                  className={`w-full text-left p-2 rounded border transition-colors ${
                     canAfford('partner') 
-                      ? 'bg-blue-700/50 hover:bg-blue-600/50 border-blue-500/30 cursor-pointer' 
+                      ? 'bg-green-700/50 hover:bg-green-600/50 border-green-500/30 cursor-pointer' 
                       : 'bg-gray-600/50 border-gray-500/30 cursor-not-allowed opacity-50'
                   }`}
                 >
-                  <div className="font-semibold">Partner Support ({gameState.upgrades.partner})</div>
-                  <div className="text-sm text-blue-200">+1 RP/sec</div>
-                  <div className="text-sm text-yellow-300">Cost: {formatNumber(getUpgradeCost('partner', gameState.upgrades.partner))} RP</div>
+                  <div className="font-semibold text-sm">👮 Partner ({gameState.upgrades.partner})</div>
+                  <div className="text-xs text-green-200">+1 RP/sec</div>
+                  <div className="text-xs text-yellow-300">Cost: {formatNumber(getUpgradeCost('partner', gameState.upgrades.partner))} RP</div>
+                </button>
+                
+                <button 
+                  onClick={() => buyUpgrade('patrol')}
+                  disabled={!canAfford('patrol')}
+                  className={`w-full text-left p-2 rounded border transition-colors ${
+                    canAfford('patrol') 
+                      ? 'bg-green-700/50 hover:bg-green-600/50 border-green-500/30 cursor-pointer' 
+                      : 'bg-gray-600/50 border-gray-500/30 cursor-not-allowed opacity-50'
+                  }`}
+                >
+                  <div className="font-semibold text-sm">🚗 Patrol Unit ({gameState.upgrades.patrol})</div>
+                  <div className="text-xs text-green-200">+3 RP/sec</div>
+                  <div className="text-xs text-yellow-300">Cost: {formatNumber(getUpgradeCost('patrol', gameState.upgrades.patrol))} RP</div>
+                </button>
+                
+                <button 
+                  onClick={() => buyUpgrade('investigation')}
+                  disabled={!canAfford('investigation')}
+                  className={`w-full text-left p-2 rounded border transition-colors ${
+                    canAfford('investigation') 
+                      ? 'bg-green-700/50 hover:bg-green-600/50 border-green-500/30 cursor-pointer' 
+                      : 'bg-gray-600/50 border-gray-500/30 cursor-not-allowed opacity-50'
+                  }`}
+                >
+                  <div className="font-semibold text-sm">🔍 Investigation ({gameState.upgrades.investigation})</div>
+                  <div className="text-xs text-green-200">+12 RP/sec</div>
+                  <div className="text-xs text-yellow-300">Cost: {formatNumber(getUpgradeCost('investigation', gameState.upgrades.investigation))} RP</div>
+                </button>
+                
+                <button 
+                  onClick={() => buyUpgrade('precinct')}
+                  disabled={!canAfford('precinct')}
+                  className={`w-full text-left p-2 rounded border transition-colors ${
+                    canAfford('precinct') 
+                      ? 'bg-green-700/50 hover:bg-green-600/50 border-green-500/30 cursor-pointer' 
+                      : 'bg-gray-600/50 border-gray-500/30 cursor-not-allowed opacity-50'
+                  }`}
+                >
+                  <div className="font-semibold text-sm">🏢 Precinct ({gameState.upgrades.precinct})</div>
+                  <div className="text-xs text-green-200">+50 RP/sec</div>
+                  <div className="text-xs text-yellow-300">Cost: {formatNumber(getUpgradeCost('precinct', gameState.upgrades.precinct))} RP</div>
+                </button>
+              </div>
+            </div>
+
+            <div className="bg-purple-800/50 rounded-lg p-6 backdrop-blur-sm border border-purple-600/30">
+              <h3 className="text-xl font-bold mb-4">⚡ Automation</h3>
+              <div className="space-y-2">
+                <button 
+                  onClick={() => buyUpgrade('automation')}
+                  disabled={!canAfford('automation')}
+                  className={`w-full text-left p-2 rounded border transition-colors ${
+                    canAfford('automation') 
+                      ? 'bg-purple-700/50 hover:bg-purple-600/50 border-purple-500/30 cursor-pointer' 
+                      : 'bg-gray-600/50 border-gray-500/30 cursor-not-allowed opacity-50'
+                  }`}
+                >
+                  <div className="font-semibold text-sm">🤖 AI System ({gameState.upgrades.automation})</div>
+                  <div className="text-xs text-purple-200">+50% passive income</div>
+                  <div className="text-xs text-yellow-300">Cost: {formatNumber(getUpgradeCost('automation', gameState.upgrades.automation))} RP</div>
                 </button>
               </div>
             </div>
@@ -415,16 +553,32 @@ export default function Home() {
                   <span>{gameState.passiveIncome}/sec</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Equipment:</span>
+                  <span>🔧 Equipment:</span>
                   <span>{gameState.upgrades.equipment}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Training:</span>
+                  <span>📚 Training:</span>
                   <span>{gameState.upgrades.training}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Partners:</span>
+                  <span>👮 Partners:</span>
                   <span>{gameState.upgrades.partner}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>🚗 Patrol Units:</span>
+                  <span>{gameState.upgrades.patrol}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>🔍 Investigations:</span>
+                  <span>{gameState.upgrades.investigation}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>🏢 Precincts:</span>
+                  <span>{gameState.upgrades.precinct}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>🤖 AI Systems:</span>
+                  <span>{gameState.upgrades.automation}</span>
                 </div>
               </div>
               

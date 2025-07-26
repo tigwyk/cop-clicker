@@ -17,12 +17,25 @@ A browser-based clicker game where players progress through a police officer's c
 - **Rank Bonuses**: +25% multiplier to all values per rank
 - **Progress Tracking**: Visual progress bar showing promotion status
 
-### Upgrade Shop
-- **Better Equipment**: +1 click value (starts at 10 RP, scales by 1.5x)
-- **Training Course**: +2 click value (starts at 50 RP, scales by 1.5x)  
-- **Partner Support**: +1 RP/second passive income (starts at 100 RP, scales by 1.5x)
-- **Dynamic Pricing**: Costs increase exponentially with each purchase
-- **Rank Synergy**: All upgrades boosted by current rank multiplier
+### Upgrade System
+**👤 Click Upgrades:**
+- **🔧 Equipment**: +1 click value (starts at 10 RP, 1.4x scaling)
+- **📚 Training**: +2 click value (starts at 25 RP, 1.6x scaling)
+
+**💰 Passive Income Generators:**
+- **👮 Partner**: +1 RP/sec (starts at 15 RP, 1.3x scaling)
+- **🚗 Patrol Unit**: +3 RP/sec (starts at 50 RP, 1.5x scaling)
+- **🔍 Investigation**: +12 RP/sec (starts at 200 RP, 1.7x scaling)
+- **🏢 Precinct**: +50 RP/sec (starts at 1K RP, 2.0x scaling)
+
+**⚡ Automation:**
+- **🤖 AI System**: +50% passive income multiplier (starts at 5K RP, 2.5x scaling)
+
+**Progression Design:**
+- Gentler cost scaling for early passive income access
+- Multiple tiers of passive generators for meaningful progression
+- Automation multipliers for exponential growth
+- Reduced emphasis on clicking in favor of strategic upgrading
 
 ### Statistics & UI
 - **Comprehensive Stats**: Track total RP, rank, click power, passive income, and upgrades
@@ -104,13 +117,22 @@ npx tsc --noEmit
 
 ## 🎯 Game Balance
 
-- **Click Values**: Start at 1, scale with equipment and training upgrades
-- **Passive Income**: Unlocked via Partner Support upgrades
-- **Rank Progression**: Meaningful milestones with 25% bonuses
-- **Cost Scaling**: 1.5x multiplier prevents trivial progression
-- **Early Game**: First upgrade available at 10 clicks
-- **Mid Game**: Rank progression provides clear goals
-- **Late Game**: Exponential scaling maintains challenge
+**Idle-Friendly Design:**
+- **Early Passive Access**: First passive income at just 15 RP (15 clicks)
+- **Tiered Progression**: Multiple passive generators unlock meaningful growth stages
+- **Reduced Click Dependence**: Passive income quickly overtakes clicking
+- **Automation Rewards**: AI systems provide exponential scaling for dedicated players
+
+**Progression Curve:**
+- **Early Game** (0-100 RP): Learn clicking, unlock first Partner
+- **Mid Game** (100-1K RP): Build passive income portfolio, achieve Detective rank
+- **Late Game** (1K+ RP): Focus on high-tier generators and automation
+- **End Game** (5K+ RP): Automation multipliers create exponential growth
+
+**Cost Scaling:**
+- **Gentle Early Scaling**: 1.3x-1.6x for early upgrades
+- **Strategic Late Scaling**: 2.0x-2.5x for high-tier content
+- **Rank Bonuses**: +25% per rank affects all income sources
 
 ## 🤝 Contributing
 
