@@ -41,9 +41,19 @@ export default function Home() {
 
   useEffect(() => {
     const savedGame = localStorage.getItem('cop-clicker-save');
+    
     if (savedGame) {
       try {
         const loadedState = JSON.parse(savedGame);
+        
+        // Ensure all required properties exist
+        if (!loadedState.upgrades) {
+          loadedState.upgrades = { equipment: 0, training: 0, partner: 0 };
+        }
+        if (!loadedState.rank) {
+          loadedState.rank = RANKS[0].name;
+        }
+        
         // Recalculate values to ensure consistency
         const rankIndex = RANKS.findIndex(rank => rank.name === loadedState.rank);
         const rankMultiplier = rankIndex >= 0 ? 1 + (rankIndex * 0.25) : 1;
@@ -60,12 +70,30 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    const autoSave = setInterval(() => {
-      localStorage.setItem('cop-clicker-save', JSON.stringify(gameState));
-    }, 5000);
+    if (isLoaded) {
+      const autoSave = setInterval(() => {
+        try {
+          localStorage.setItem('cop-clicker-save', JSON.stringify(gameState));
+        } catch (e) {
+          console.error('Failed to save game:', e);
+        }
+      }, 5000);
 
-    return () => clearInterval(autoSave);
-  }, [gameState]);
+      return () => clearInterval(autoSave);
+    }
+  }, [gameState, isLoaded]);
+
+  // Save on page unload
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (isLoaded) {
+        localStorage.setItem('cop-clicker-save', JSON.stringify(gameState));
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [gameState, isLoaded]);
 
   useEffect(() => {
     if (isLoaded && gameState.passiveIncome > 0) {
@@ -126,6 +154,31 @@ export default function Home() {
     return rankIndex >= 0 ? 1 + (rankIndex * 0.25) : 1; // 25% bonus per rank
   };
 
+  const saveGame = () => {
+    try {
+      localStorage.setItem('cop-clicker-save', JSON.stringify(gameState));
+    } catch (e) {
+      console.error('Failed to save game:', e);
+    }
+  };
+
+  const resetGame = () => {
+    if (confirm('Are you sure you want to reset your progress? This cannot be undone!')) {
+      localStorage.removeItem('cop-clicker-save');
+      setGameState({
+        respectPoints: 0,
+        clickValue: 1,
+        rank: RANKS[0].name,
+        passiveIncome: 0,
+        upgrades: {
+          equipment: 0,
+          training: 0,
+          partner: 0
+        }
+      });
+    }
+  };
+
   const buyUpgrade = (upgradeType: 'equipment' | 'training' | 'partner') => {
     const cost = getUpgradeCost(upgradeType, gameState.upgrades[upgradeType]);
     
@@ -146,17 +199,12 @@ export default function Home() {
         newState.clickValue = Math.floor((1 + newState.upgrades.equipment + (newState.upgrades.training * 2)) * rankMultiplier);
         newState.passiveIncome = Math.floor(newState.upgrades.partner * rankMultiplier);
         
-        // Debug log for partner upgrades
-        if (upgradeType === 'partner') {
-          console.log('Partner upgrade bought:', {
-            partnerLevel: newState.upgrades.partner,
-            rankMultiplier,
-            calculatedPassiveIncome: newState.passiveIncome
-          });
-        }
 
         return newState;
       });
+      
+      // Save immediately after important actions
+      setTimeout(() => saveGame(), 100);
     }
   };
 
@@ -378,6 +426,21 @@ export default function Home() {
                   <span>Partners:</span>
                   <span>{gameState.upgrades.partner}</span>
                 </div>
+              </div>
+              
+              <div className="mt-4 space-y-2">
+                <button
+                  onClick={saveGame}
+                  className="w-full p-2 bg-green-600 hover:bg-green-500 rounded text-sm font-semibold transition-colors"
+                >
+                  💾 Save Game
+                </button>
+                <button
+                  onClick={resetGame}
+                  className="w-full p-2 bg-red-600 hover:bg-red-500 rounded text-sm font-semibold transition-colors"
+                >
+                  🔄 Reset Progress
+                </button>
               </div>
             </div>
           </div>
