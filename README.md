@@ -1,36 +1,122 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Cop-Clicker
+## An incremental game about cop life
 
-## Getting Started
+A browser-based clicker game where players progress through a police officer's career, earning respect points and climbing the ranks from Beat Cop to Chief.
 
-First, run the development server:
+## 🎮 Current Features
 
+### Core Gameplay
+- **Click Mechanics**: Click the police car to earn Respect Points (RP)
+- **Currency System**: Respect Points with smart formatting (K, M, B, T)
+- **Visual Feedback**: Floating "+X" animations on clicks
+- **Auto-Save**: Progress automatically saved every 5 seconds to localStorage
+
+### Progression System
+- **6 Police Ranks**: Beat Cop → Detective → Sergeant → Lieutenant → Captain → Chief
+- **Rank Requirements**: 0, 100, 500, 2K, 10K, 50K Respect Points
+- **Rank Bonuses**: +25% multiplier to all values per rank
+- **Progress Tracking**: Visual progress bar showing promotion status
+
+### Upgrade Shop
+- **Better Equipment**: +1 click value (starts at 10 RP, scales by 1.5x)
+- **Training Course**: +2 click value (starts at 50 RP, scales by 1.5x)  
+- **Partner Support**: +1 RP/second passive income (starts at 100 RP, scales by 1.5x)
+- **Dynamic Pricing**: Costs increase exponentially with each purchase
+- **Rank Synergy**: All upgrades boosted by current rank multiplier
+
+### Statistics & UI
+- **Comprehensive Stats**: Track total RP, rank, click power, passive income, and upgrades
+- **Responsive Design**: Works on desktop and mobile devices
+- **Police Theme**: Blue gradient background with police car emoji and themed UI
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Node.js 18+ 
+- npm or yarn
+
+### Installation
 ```bash
+# Clone the repository
+git clone <repository-url>
+cd cop-clicker
+
+# Install dependencies
+npm install
+
+# Start development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+The game will be available at `http://localhost:3000` (or next available port).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Other Commands
+```bash
+# Build for production
+npm run build
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+# Start production server
+npm start
 
-## Learn More
+# Type check
+npx tsc --noEmit
+```
 
-To learn more about Next.js, take a look at the following resources:
+## 🏗️ Technology Stack
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- **Next.js 15** - React framework with App Router
+- **React 19** - UI library with modern hooks
+- **TypeScript** - Type safety and better DX
+- **Tailwind CSS v4** - Utility-first CSS framework
+- **Turbopack** - Fast development builds
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## 📋 Development Roadmap
 
-## Deploy on Vercel
+### ✅ Phase 1: Core Foundation (Complete)
+- [x] Basic clicking mechanics
+- [x] Respect Points currency system  
+- [x] Upgrade shop with 3 upgrade types
+- [x] Rank progression system (6 ranks)
+- [x] Auto-save/load functionality
+- [x] Visual feedback and animations
+- [x] Responsive UI design
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### 🔄 Phase 2: Core Progression (Planned)
+- [ ] Prestige system ("Retirement" mechanic)
+- [ ] Legacy Points currency
+- [ ] Permanent progression bonuses
+- [ ] Achievement system
+- [ ] Case-solving mini-games
+- [ ] Random events
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### 🎯 Phase 3: Advanced Features (Future)
+- [ ] Equipment system
+- [ ] Department management
+- [ ] Sound effects and animations
+- [ ] Dark/light theme toggle
+- [ ] Export/import saves
+
+### 🌟 Phase 4: Extended Content (Future)
+- [ ] Specialized units (SWAT, K-9, Detective)
+- [ ] Storyline and narrative
+- [ ] Social features and leaderboards
+- [ ] Community challenges
+
+## 🎯 Game Balance
+
+- **Click Values**: Start at 1, scale with equipment and training upgrades
+- **Passive Income**: Unlocked via Partner Support upgrades
+- **Rank Progression**: Meaningful milestones with 25% bonuses
+- **Cost Scaling**: 1.5x multiplier prevents trivial progression
+- **Early Game**: First upgrade available at 10 clicks
+- **Mid Game**: Rank progression provides clear goals
+- **Late Game**: Exponential scaling maintains challenge
+
+## 🤝 Contributing
+
+This project follows the roadmap outlined in `ROADMAP.md`. See `CLAUDE.md` for technical guidance when working with Claude Code.
+
+## 📄 License
+
+This project is open source and available under the [MIT License](LICENSE).
+
