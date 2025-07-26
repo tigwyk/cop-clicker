@@ -7,7 +7,8 @@ A browser-based clicker game where players progress through a police officer's c
 
 ### Core Gameplay
 - **Click Mechanics**: Click the police car to earn Respect Points (RP)
-- **Currency System**: Respect Points with smart formatting (K, M, B, T)
+- **Big Number Support**: Handle ridiculously large numbers using break_eternity.js
+- **Smart Formatting**: K, M, B, T, Qa, Qi, Sx, Sp, Oc, No, and scientific notation
 - **Visual Feedback**: Floating "+X" animations on clicks
 - **Auto-Save**: Progress automatically saved every 5 seconds to localStorage
 
@@ -82,6 +83,7 @@ npx tsc --noEmit
 - **TypeScript** - Type safety and better DX
 - **Tailwind CSS v4** - Utility-first CSS framework
 - **Turbopack** - Fast development builds
+- **break_eternity.js** - Big number support for astronomical values
 
 ## 📋 Development Roadmap
 
