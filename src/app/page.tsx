@@ -533,7 +533,7 @@ export default function Home() {
             </div>
 
             <div className="bg-green-800/50 rounded-lg p-6 backdrop-blur-sm border border-green-600/30">
-              <h3 className="text-xl font-bold mb-4">💰 Passive Income</h3>
+              <h3 className="text-xl font-bold mb-4">💰 Passive Rank</h3>
               <div className="space-y-2">
                 <button 
                   onClick={() => buyUpgrade('partner')}
