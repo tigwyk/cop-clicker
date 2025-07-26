@@ -622,7 +622,7 @@ export default function Home() {
               <div className="mb-4">
                 <div className="text-sm text-blue-200 mb-2">Purchase Quantity:</div>
                 <div className="flex flex-wrap gap-1">
-                  {[1, 10, 100, 1000, 'max'].map((qty) => (
+                  {([1, 10, 100, 1000, 'max'] as const).map((qty) => (
                     <button
                       key={qty}
                       onClick={() => setPurchaseQuantity(qty)}
