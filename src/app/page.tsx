@@ -47,6 +47,7 @@ export default function Home() {
 
   const [clickAnimations, setClickAnimations] = useState<Array<{id: number, x: number, y: number}>>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [purchaseQuantity, setPurchaseQuantity] = useState<number | 'max'>(1);
 
   useEffect(() => {
     const savedGame = localStorage.getItem('cop-clicker-save');
@@ -253,6 +254,102 @@ export default function Home() {
     return baseCost.mul(Decimal.pow(scaling, currentLevel)).floor();
   };
 
+  const getBulkUpgradeCost = (upgradeType: string, currentLevel: Decimal, quantity: Decimal): Decimal => {
+    const baseCosts = {
+      equipment: new Decimal(10),
+      training: new Decimal(25),
+      partner: new Decimal(15),
+      patrol: new Decimal(50),
+      investigation: new Decimal(200),
+      precinct: new Decimal(1000),
+      automation: new Decimal(5000)
+    };
+    
+    const scalingFactors = {
+      equipment: new Decimal(1.4),
+      training: new Decimal(1.6),
+      partner: new Decimal(1.3),
+      patrol: new Decimal(1.5),
+      investigation: new Decimal(1.7),
+      precinct: new Decimal(2.0),
+      automation: new Decimal(2.5)
+    };
+    
+    const baseCost = baseCosts[upgradeType as keyof typeof baseCosts] || new Decimal(10);
+    const scaling = scalingFactors[upgradeType as keyof typeof scalingFactors] || new Decimal(1.5);
+    
+    // Calculate geometric series sum: baseCost * scaling^currentLevel * (scaling^quantity - 1) / (scaling - 1)
+    if (scaling.eq(1)) {
+      return baseCost.mul(currentLevel).mul(quantity);
+    }
+    
+    const startCost = baseCost.mul(Decimal.pow(scaling, currentLevel));
+    const scalingPowerQuantity = Decimal.pow(scaling, quantity);
+    const geometricSum = startCost.mul(scalingPowerQuantity.sub(1)).div(scaling.sub(1));
+    
+    return geometricSum.floor();
+  };
+
+  const getMaxAffordableQuantity = (upgradeType: string, currentLevel: Decimal, availableMoney: Decimal): Decimal => {
+    const baseCosts = {
+      equipment: new Decimal(10),
+      training: new Decimal(25),
+      partner: new Decimal(15),
+      patrol: new Decimal(50),
+      investigation: new Decimal(200),
+      precinct: new Decimal(1000),
+      automation: new Decimal(5000)
+    };
+    
+    const scalingFactors = {
+      equipment: new Decimal(1.4),
+      training: new Decimal(1.6),
+      partner: new Decimal(1.3),
+      patrol: new Decimal(1.5),
+      investigation: new Decimal(1.7),
+      precinct: new Decimal(2.0),
+      automation: new Decimal(2.5)
+    };
+    
+    const baseCost = baseCosts[upgradeType as keyof typeof baseCosts] || new Decimal(10);
+    const scaling = scalingFactors[upgradeType as keyof typeof scalingFactors] || new Decimal(1.5);
+    
+    if (scaling.eq(1)) {
+      return availableMoney.div(baseCost.mul(currentLevel)).floor();
+    }
+    
+    const startCost = baseCost.mul(Decimal.pow(scaling, currentLevel));
+    if (availableMoney.lt(startCost)) {
+      return new Decimal(0);
+    }
+    
+    // Binary search to find maximum affordable quantity
+    let low = new Decimal(1);
+    let high = new Decimal(1000); // Start with reasonable upper bound
+    
+    // Increase upper bound if needed
+    while (getBulkUpgradeCost(upgradeType, currentLevel, high).lte(availableMoney)) {
+      high = high.mul(10);
+    }
+    
+    let result = new Decimal(0);
+    
+    // Binary search
+    while (low.lte(high)) {
+      const mid = low.add(high).div(2).floor();
+      const cost = getBulkUpgradeCost(upgradeType, currentLevel, mid);
+      
+      if (cost.lte(availableMoney)) {
+        result = mid;
+        low = mid.add(1);
+      } else {
+        high = mid.sub(1);
+      }
+    }
+    
+    return result;
+  };
+
   const getRankMultiplier = (): Decimal => {
     if (!gameState?.rank) return new Decimal(1);
     const rankIndex = RANKS.findIndex(rank => rank.name === gameState.rank);
@@ -304,7 +401,17 @@ export default function Home() {
   };
 
   const buyUpgrade = (upgradeType: 'equipment' | 'training' | 'partner' | 'patrol' | 'investigation' | 'precinct' | 'automation') => {
-    const cost = getUpgradeCost(upgradeType, gameState.upgrades[upgradeType]);
+    let quantity: Decimal;
+    
+    if (purchaseQuantity === 'max') {
+      quantity = getMaxAffordableQuantity(upgradeType, gameState.upgrades[upgradeType], gameState.respectPoints);
+    } else {
+      quantity = new Decimal(purchaseQuantity);
+    }
+    
+    if (quantity.lte(0)) return;
+    
+    const cost = getBulkUpgradeCost(upgradeType, gameState.upgrades[upgradeType], quantity);
     
     if (gameState.respectPoints.gte(cost)) {
       setGameState(prev => {
@@ -313,7 +420,7 @@ export default function Home() {
           respectPoints: prev.respectPoints.sub(cost),
           upgrades: {
             ...prev.upgrades,
-            [upgradeType]: prev.upgrades[upgradeType].add(1)
+            [upgradeType]: prev.upgrades[upgradeType].add(quantity)
           }
         };
 
@@ -347,7 +454,17 @@ export default function Home() {
 
   const canAfford = (upgradeType: 'equipment' | 'training' | 'partner' | 'patrol' | 'investigation' | 'precinct' | 'automation') => {
     if (!gameState?.upgrades) return false;
-    return gameState.respectPoints.gte(getUpgradeCost(upgradeType, gameState.upgrades[upgradeType]));
+    
+    let quantity: Decimal;
+    if (purchaseQuantity === 'max') {
+      quantity = getMaxAffordableQuantity(upgradeType, gameState.upgrades[upgradeType], gameState.respectPoints);
+      return quantity.gt(0);
+    } else {
+      quantity = new Decimal(purchaseQuantity);
+    }
+    
+    const cost = getBulkUpgradeCost(upgradeType, gameState.upgrades[upgradeType], quantity);
+    return gameState.respectPoints.gte(cost);
   };
 
   const updateRank = () => {
@@ -501,6 +618,26 @@ export default function Home() {
           <div className="space-y-6">
             <div className="bg-blue-800/50 rounded-lg p-6 backdrop-blur-sm border border-blue-600/30">
               <h3 className="text-xl font-bold mb-4">👤 Click Upgrades</h3>
+              
+              <div className="mb-4">
+                <div className="text-sm text-blue-200 mb-2">Purchase Quantity:</div>
+                <div className="flex flex-wrap gap-1">
+                  {[1, 10, 100, 1000, 'max'].map((qty) => (
+                    <button
+                      key={qty}
+                      onClick={() => setPurchaseQuantity(qty)}
+                      className={`px-2 py-1 rounded text-xs font-semibold transition-colors ${
+                        purchaseQuantity === qty
+                          ? 'bg-blue-500 text-white border border-blue-300'
+                          : 'bg-blue-700/50 text-blue-200 border border-blue-600/50 hover:bg-blue-600/50'
+                      }`}
+                    >
+                      {qty === 'max' ? 'Max' : `${qty}x`}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
               <div className="space-y-2">
                 <button 
                   onClick={() => buyUpgrade('equipment')}
@@ -512,8 +649,25 @@ export default function Home() {
                   }`}
                 >
                   <div className="font-semibold text-sm">🔧 Equipment ({gameState.upgrades.equipment.toString()})</div>
-                  <div className="text-xs text-blue-200">+1 click value</div>
-                  <div className="text-xs text-yellow-300">Cost: {formatNumber(getUpgradeCost('equipment', gameState.upgrades.equipment))} RP</div>
+                  <div className="text-xs text-blue-200">
+                    {purchaseQuantity === 1 ? '+1 click value' : `+${purchaseQuantity === 'max' ? getMaxAffordableQuantity('equipment', gameState.upgrades.equipment, gameState.respectPoints).toString() : purchaseQuantity} click value`}
+                  </div>
+                  <div className="text-xs text-yellow-300">
+                    Cost: {formatNumber(
+                      purchaseQuantity === 1 
+                        ? getUpgradeCost('equipment', gameState.upgrades.equipment)
+                        : getBulkUpgradeCost('equipment', gameState.upgrades.equipment, 
+                            purchaseQuantity === 'max' 
+                              ? getMaxAffordableQuantity('equipment', gameState.upgrades.equipment, gameState.respectPoints)
+                              : new Decimal(purchaseQuantity)
+                          )
+                    )} RP
+                    {purchaseQuantity !== 1 && (
+                      <span className="ml-1 text-blue-300">
+                        ({purchaseQuantity === 'max' ? getMaxAffordableQuantity('equipment', gameState.upgrades.equipment, gameState.respectPoints).toString() : purchaseQuantity}x)
+                      </span>
+                    )}
+                  </div>
                 </button>
                 
                 <button 
@@ -526,8 +680,25 @@ export default function Home() {
                   }`}
                 >
                   <div className="font-semibold text-sm">📚 Training ({gameState.upgrades.training.toString()})</div>
-                  <div className="text-xs text-blue-200">+2 click value</div>
-                  <div className="text-xs text-yellow-300">Cost: {formatNumber(getUpgradeCost('training', gameState.upgrades.training))} RP</div>
+                  <div className="text-xs text-blue-200">
+                    {purchaseQuantity === 1 ? '+2 click value' : `+${(purchaseQuantity === 'max' ? getMaxAffordableQuantity('training', gameState.upgrades.training, gameState.respectPoints) : new Decimal(purchaseQuantity)).mul(2).toString()} click value`}
+                  </div>
+                  <div className="text-xs text-yellow-300">
+                    Cost: {formatNumber(
+                      purchaseQuantity === 1 
+                        ? getUpgradeCost('training', gameState.upgrades.training)
+                        : getBulkUpgradeCost('training', gameState.upgrades.training, 
+                            purchaseQuantity === 'max' 
+                              ? getMaxAffordableQuantity('training', gameState.upgrades.training, gameState.respectPoints)
+                              : new Decimal(purchaseQuantity)
+                          )
+                    )} RP
+                    {purchaseQuantity !== 1 && (
+                      <span className="ml-1 text-blue-300">
+                        ({purchaseQuantity === 'max' ? getMaxAffordableQuantity('training', gameState.upgrades.training, gameState.respectPoints).toString() : purchaseQuantity}x)
+                      </span>
+                    )}
+                  </div>
                 </button>
               </div>
             </div>
@@ -545,8 +716,25 @@ export default function Home() {
                   }`}
                 >
                   <div className="font-semibold text-sm">👮 Partner ({gameState.upgrades.partner.toString()})</div>
-                  <div className="text-xs text-green-200">+1 RP/sec</div>
-                  <div className="text-xs text-yellow-300">Cost: {formatNumber(getUpgradeCost('partner', gameState.upgrades.partner))} RP</div>
+                  <div className="text-xs text-green-200">
+                    {purchaseQuantity === 1 ? '+1 RP/sec' : `+${purchaseQuantity === 'max' ? getMaxAffordableQuantity('partner', gameState.upgrades.partner, gameState.respectPoints).toString() : purchaseQuantity} RP/sec`}
+                  </div>
+                  <div className="text-xs text-yellow-300">
+                    Cost: {formatNumber(
+                      purchaseQuantity === 1 
+                        ? getUpgradeCost('partner', gameState.upgrades.partner)
+                        : getBulkUpgradeCost('partner', gameState.upgrades.partner, 
+                            purchaseQuantity === 'max' 
+                              ? getMaxAffordableQuantity('partner', gameState.upgrades.partner, gameState.respectPoints)
+                              : new Decimal(purchaseQuantity)
+                          )
+                    )} RP
+                    {purchaseQuantity !== 1 && (
+                      <span className="ml-1 text-green-300">
+                        ({purchaseQuantity === 'max' ? getMaxAffordableQuantity('partner', gameState.upgrades.partner, gameState.respectPoints).toString() : purchaseQuantity}x)
+                      </span>
+                    )}
+                  </div>
                 </button>
                 
                 <button 
@@ -559,8 +747,25 @@ export default function Home() {
                   }`}
                 >
                   <div className="font-semibold text-sm">🚗 Patrol Unit ({gameState.upgrades.patrol.toString()})</div>
-                  <div className="text-xs text-green-200">+3 RP/sec</div>
-                  <div className="text-xs text-yellow-300">Cost: {formatNumber(getUpgradeCost('patrol', gameState.upgrades.patrol))} RP</div>
+                  <div className="text-xs text-green-200">
+                    {purchaseQuantity === 1 ? '+3 RP/sec' : `+${(purchaseQuantity === 'max' ? getMaxAffordableQuantity('patrol', gameState.upgrades.patrol, gameState.respectPoints) : new Decimal(purchaseQuantity)).mul(3).toString()} RP/sec`}
+                  </div>
+                  <div className="text-xs text-yellow-300">
+                    Cost: {formatNumber(
+                      purchaseQuantity === 1 
+                        ? getUpgradeCost('patrol', gameState.upgrades.patrol)
+                        : getBulkUpgradeCost('patrol', gameState.upgrades.patrol, 
+                            purchaseQuantity === 'max' 
+                              ? getMaxAffordableQuantity('patrol', gameState.upgrades.patrol, gameState.respectPoints)
+                              : new Decimal(purchaseQuantity)
+                          )
+                    )} RP
+                    {purchaseQuantity !== 1 && (
+                      <span className="ml-1 text-green-300">
+                        ({purchaseQuantity === 'max' ? getMaxAffordableQuantity('patrol', gameState.upgrades.patrol, gameState.respectPoints).toString() : purchaseQuantity}x)
+                      </span>
+                    )}
+                  </div>
                 </button>
                 
                 <button 
@@ -573,8 +778,25 @@ export default function Home() {
                   }`}
                 >
                   <div className="font-semibold text-sm">🔍 Investigation ({gameState.upgrades.investigation.toString()})</div>
-                  <div className="text-xs text-green-200">+12 RP/sec</div>
-                  <div className="text-xs text-yellow-300">Cost: {formatNumber(getUpgradeCost('investigation', gameState.upgrades.investigation))} RP</div>
+                  <div className="text-xs text-green-200">
+                    {purchaseQuantity === 1 ? '+12 RP/sec' : `+${(purchaseQuantity === 'max' ? getMaxAffordableQuantity('investigation', gameState.upgrades.investigation, gameState.respectPoints) : new Decimal(purchaseQuantity)).mul(12).toString()} RP/sec`}
+                  </div>
+                  <div className="text-xs text-yellow-300">
+                    Cost: {formatNumber(
+                      purchaseQuantity === 1 
+                        ? getUpgradeCost('investigation', gameState.upgrades.investigation)
+                        : getBulkUpgradeCost('investigation', gameState.upgrades.investigation, 
+                            purchaseQuantity === 'max' 
+                              ? getMaxAffordableQuantity('investigation', gameState.upgrades.investigation, gameState.respectPoints)
+                              : new Decimal(purchaseQuantity)
+                          )
+                    )} RP
+                    {purchaseQuantity !== 1 && (
+                      <span className="ml-1 text-green-300">
+                        ({purchaseQuantity === 'max' ? getMaxAffordableQuantity('investigation', gameState.upgrades.investigation, gameState.respectPoints).toString() : purchaseQuantity}x)
+                      </span>
+                    )}
+                  </div>
                 </button>
                 
                 <button 
@@ -587,8 +809,25 @@ export default function Home() {
                   }`}
                 >
                   <div className="font-semibold text-sm">🏢 Precinct ({gameState.upgrades.precinct.toString()})</div>
-                  <div className="text-xs text-green-200">+50 RP/sec</div>
-                  <div className="text-xs text-yellow-300">Cost: {formatNumber(getUpgradeCost('precinct', gameState.upgrades.precinct))} RP</div>
+                  <div className="text-xs text-green-200">
+                    {purchaseQuantity === 1 ? '+50 RP/sec' : `+${(purchaseQuantity === 'max' ? getMaxAffordableQuantity('precinct', gameState.upgrades.precinct, gameState.respectPoints) : new Decimal(purchaseQuantity)).mul(50).toString()} RP/sec`}
+                  </div>
+                  <div className="text-xs text-yellow-300">
+                    Cost: {formatNumber(
+                      purchaseQuantity === 1 
+                        ? getUpgradeCost('precinct', gameState.upgrades.precinct)
+                        : getBulkUpgradeCost('precinct', gameState.upgrades.precinct, 
+                            purchaseQuantity === 'max' 
+                              ? getMaxAffordableQuantity('precinct', gameState.upgrades.precinct, gameState.respectPoints)
+                              : new Decimal(purchaseQuantity)
+                          )
+                    )} RP
+                    {purchaseQuantity !== 1 && (
+                      <span className="ml-1 text-green-300">
+                        ({purchaseQuantity === 'max' ? getMaxAffordableQuantity('precinct', gameState.upgrades.precinct, gameState.respectPoints).toString() : purchaseQuantity}x)
+                      </span>
+                    )}
+                  </div>
                 </button>
               </div>
             </div>
@@ -606,8 +845,25 @@ export default function Home() {
                   }`}
                 >
                   <div className="font-semibold text-sm">🤖 AI System ({gameState.upgrades.automation.toString()})</div>
-                  <div className="text-xs text-purple-200">+50% passive income</div>
-                  <div className="text-xs text-yellow-300">Cost: {formatNumber(getUpgradeCost('automation', gameState.upgrades.automation))} RP</div>
+                  <div className="text-xs text-purple-200">
+                    {purchaseQuantity === 1 ? '+50% passive income' : `+${(purchaseQuantity === 'max' ? getMaxAffordableQuantity('automation', gameState.upgrades.automation, gameState.respectPoints) : new Decimal(purchaseQuantity)).mul(50).toString()}% passive income`}
+                  </div>
+                  <div className="text-xs text-yellow-300">
+                    Cost: {formatNumber(
+                      purchaseQuantity === 1 
+                        ? getUpgradeCost('automation', gameState.upgrades.automation)
+                        : getBulkUpgradeCost('automation', gameState.upgrades.automation, 
+                            purchaseQuantity === 'max' 
+                              ? getMaxAffordableQuantity('automation', gameState.upgrades.automation, gameState.respectPoints)
+                              : new Decimal(purchaseQuantity)
+                          )
+                    )} RP
+                    {purchaseQuantity !== 1 && (
+                      <span className="ml-1 text-purple-300">
+                        ({purchaseQuantity === 'max' ? getMaxAffordableQuantity('automation', gameState.upgrades.automation, gameState.respectPoints).toString() : purchaseQuantity}x)
+                      </span>
+                    )}
+                  </div>
                 </button>
               </div>
             </div>
