@@ -84,6 +84,53 @@ interface EquipmentSlots {
   gadget: EquipmentItem | null;
 }
 
+interface DepartmentBuilding {
+  id: string;
+  name: string;
+  description: string;
+  type: 'police_station' | 'training_facility' | 'forensics_lab' | 'dispatch_center' | 'armory' | 'motor_pool';
+  level: number;
+  maxLevel: number;
+  cost: Decimal;
+  costScaling: number;
+  effects: {
+    passiveIncome?: number;
+    clickPower?: number;
+    staffCapacity?: number;
+    upgradeDiscount?: number;
+    caseSuccessRate?: number;
+    eventChance?: number;
+  };
+  unlockRank: string;
+  staffed: number;
+  icon: string;
+}
+
+interface StaffMember {
+  id: string;
+  name: string;
+  type: 'officer' | 'detective' | 'technician' | 'dispatcher' | 'sergeant';
+  level: number;
+  experience: number;
+  assignedBuilding: string | null;
+  efficiency: number;
+  cost: Decimal;
+  skills: {
+    investigation?: number;
+    patrol?: number;
+    technical?: number;
+    leadership?: number;
+  };
+  unlockRank: string;
+}
+
+interface Department {
+  buildings: DepartmentBuilding[];
+  staff: StaffMember[];
+  totalStaffCapacity: number;
+  totalIncome: Decimal;
+}
+
 interface GameState {
   respectPoints: Decimal;
   clickValue: Decimal;
@@ -118,6 +165,7 @@ interface GameState {
   }[];
   equipment: EquipmentItem[];
   equippedItems: EquipmentSlots;
+  department: Department;
   soundSettings: {
     masterVolume: number;
     sfxEnabled: boolean;
@@ -759,6 +807,170 @@ const INITIAL_ACHIEVEMENTS: Achievement[] = [
   }
 ];
 
+const INITIAL_DEPARTMENT_BUILDINGS: DepartmentBuilding[] = [
+  {
+    id: 'police_station',
+    name: 'Police Station',
+    description: 'Main headquarters providing overall department coordination and basic operations',
+    type: 'police_station',
+    level: 0,
+    maxLevel: 10,
+    cost: new Decimal(500),
+    costScaling: 2.0,
+    effects: {
+      passiveIncome: 10,
+      staffCapacity: 5
+    },
+    unlockRank: 'Beat Cop',
+    staffed: 0,
+    icon: '🏛️'
+  },
+  {
+    id: 'training_facility',
+    name: 'Training Facility',
+    description: 'Improves officer efficiency and unlocks advanced training programs',
+    type: 'training_facility',
+    level: 0,
+    maxLevel: 8,
+    cost: new Decimal(1000),
+    costScaling: 2.2,
+    effects: {
+      upgradeDiscount: 5,
+      staffCapacity: 3
+    },
+    unlockRank: 'Detective',
+    staffed: 0,
+    icon: '🎯'
+  },
+  {
+    id: 'forensics_lab',
+    name: 'Forensics Lab',
+    description: 'Advanced crime scene analysis increases case success rates',
+    type: 'forensics_lab',
+    level: 0,
+    maxLevel: 6,
+    cost: new Decimal(2500),
+    costScaling: 2.5,
+    effects: {
+      caseSuccessRate: 15,
+      staffCapacity: 2
+    },
+    unlockRank: 'Sergeant',
+    staffed: 0,
+    icon: '🔬'
+  },
+  {
+    id: 'dispatch_center',
+    name: 'Dispatch Center',
+    description: 'Central communication hub that coordinates emergency responses',
+    type: 'dispatch_center',
+    level: 0,
+    maxLevel: 5,
+    cost: new Decimal(5000),
+    costScaling: 2.3,
+    effects: {
+      eventChance: 10,
+      clickPower: 5
+    },
+    unlockRank: 'Lieutenant',
+    staffed: 0,
+    icon: '📡'
+  },
+  {
+    id: 'armory',
+    name: 'Armory',
+    description: 'Equipment storage and maintenance facility',
+    type: 'armory',
+    level: 0,
+    maxLevel: 4,
+    cost: new Decimal(7500),
+    costScaling: 2.8,
+    effects: {
+      clickPower: 10,
+      staffCapacity: 2
+    },
+    unlockRank: 'Captain',
+    staffed: 0,
+    icon: '🔫'
+  },
+  {
+    id: 'motor_pool',
+    name: 'Motor Pool',
+    description: 'Vehicle maintenance and dispatch center for patrol units',
+    type: 'motor_pool',
+    level: 0,
+    maxLevel: 6,
+    cost: new Decimal(10000),
+    costScaling: 2.4,
+    effects: {
+      passiveIncome: 25,
+      eventChance: 5
+    },
+    unlockRank: 'Chief',
+    staffed: 0,
+    icon: '🚗'
+  }
+];
+
+const INITIAL_STAFF_TYPES: Omit<StaffMember, 'id' | 'assignedBuilding' | 'level' | 'experience'>[] = [
+  {
+    name: 'Patrol Officer',
+    type: 'officer',
+    efficiency: 1.0,
+    cost: new Decimal(100),
+    skills: {
+      patrol: 3,
+      investigation: 1
+    },
+    unlockRank: 'Beat Cop'
+  },
+  {
+    name: 'Detective',
+    type: 'detective',
+    efficiency: 1.5,
+    cost: new Decimal(250),
+    skills: {
+      investigation: 4,
+      technical: 2
+    },
+    unlockRank: 'Detective'
+  },
+  {
+    name: 'Forensic Technician',
+    type: 'technician',
+    efficiency: 1.2,
+    cost: new Decimal(400),
+    skills: {
+      technical: 5,
+      investigation: 2
+    },
+    unlockRank: 'Sergeant'
+  },
+  {
+    name: 'Dispatcher',
+    type: 'dispatcher',
+    efficiency: 1.3,
+    cost: new Decimal(300),
+    skills: {
+      technical: 3,
+      leadership: 2
+    },
+    unlockRank: 'Lieutenant'
+  },
+  {
+    name: 'Sergeant',
+    type: 'sergeant',
+    efficiency: 2.0,
+    cost: new Decimal(800),
+    skills: {
+      leadership: 5,
+      patrol: 3,
+      investigation: 2
+    },
+    unlockRank: 'Captain'
+  }
+];
+
 export default function Home() {
   const [gameState, setGameState] = useState<GameState>({
     respectPoints: new Decimal(0),
@@ -795,6 +1007,12 @@ export default function Home() {
       vest: null,
       vehicle: null,
       gadget: null
+    },
+    department: {
+      buildings: [...INITIAL_DEPARTMENT_BUILDINGS],
+      staff: [],
+      totalStaffCapacity: 0,
+      totalIncome: new Decimal(0)
     },
     soundSettings: {
       masterVolume: 0.7,
@@ -1872,6 +2090,7 @@ export default function Home() {
         activeEffects: [], // Clear active effects on prestige
         equipment: prev.equipment, // Keep equipment collection
         equippedItems: prev.equippedItems, // Keep equipped items
+        department: prev.department, // Keep department buildings and staff
         soundSettings: prev.soundSettings, // Keep sound settings
         themeSettings: prev.themeSettings, // Keep theme settings
         statistics: {
@@ -2087,6 +2306,12 @@ export default function Home() {
           vest: null,
           vehicle: null,
           gadget: null
+        },
+        department: {
+          buildings: [...INITIAL_DEPARTMENT_BUILDINGS],
+          staff: [],
+          totalStaffCapacity: 0,
+          totalIncome: new Decimal(0)
         },
         soundSettings: {
           masterVolume: 0.7,
@@ -2308,6 +2533,12 @@ export default function Home() {
             accent: '#fbbf24'
           }
         },
+        department: saveData.department || {
+          buildings: [...INITIAL_DEPARTMENT_BUILDINGS],
+          staff: [],
+          totalStaffCapacity: 0,
+          totalIncome: new Decimal(0)
+        },
         statistics: {
           totalClicks: convertToDecimal(saveData.statistics?.totalClicks || '0'),
           totalUpgradesPurchased: convertToDecimal(saveData.statistics?.totalUpgradesPurchased || '0'),
@@ -2512,14 +2743,14 @@ export default function Home() {
       background: 'linear-gradient(to bottom right, var(--bg-primary), var(--bg-secondary))',
       color: 'var(--text-primary)'
     }}>
-      <div className="container mx-auto px-4 py-8">
-        <header className="text-center mb-8">
-          <h1 className="text-4xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Cop Clicker</h1>
-          <p style={{ color: 'var(--text-secondary)' }}>Rise Through the Ranks</p>
+      <div className="container mx-auto px-4 py-4 sm:py-8">
+        <header className="text-center mb-4 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Cop Clicker</h1>
+          <p className="text-sm sm:text-base" style={{ color: 'var(--text-secondary)' }}>Rise Through the Ranks</p>
         </header>
 
         {/* Achievement Notifications */}
-        <div className="fixed top-4 right-4 z-50 space-y-2">
+        <div className="fixed top-2 right-2 sm:top-4 sm:right-4 z-50 space-y-2 max-w-[90vw] sm:max-w-sm">
           {/* Event Notifications */}
           {eventNotifications.map((event) => (
             <div
@@ -2571,15 +2802,15 @@ export default function Home() {
           ))}
         </div>
 
-        <div className="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
-            <div className="bg-blue-800/50 rounded-lg p-6 mb-6 backdrop-blur-sm border border-blue-600/30">
+        <div className="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6 lg:gap-8">
+          <div className="lg:col-span-2 space-y-4 sm:space-y-6">
+            <div className="bg-blue-800/50 rounded-lg p-4 sm:p-6 backdrop-blur-sm border border-blue-600/30">
               <div className="text-center mb-4">
-                <h2 className="text-2xl font-bold mb-2">Current Rank: {gameState.rank}</h2>
-                <div className="text-3xl font-mono">
+                <h2 className="text-lg sm:text-xl lg:text-2xl font-bold mb-2">Current Rank: {gameState.rank}</h2>
+                <div className="text-xl sm:text-2xl lg:text-3xl font-mono">
                   {formatNumber(gameState.respectPoints)} Respect Points
                 </div>
-                <div className="text-lg text-blue-200 mt-2">
+                <div className="text-sm sm:text-base lg:text-lg text-blue-200 mt-2">
                   +{formatNumber(gameState.clickValue.add(new Decimal(getEquipmentBonuses().clickPower)))} per click
                   {(gameState.passiveIncome.gt(0) || getEquipmentBonuses().passiveIncome > 0) && (
                     <div className="text-sm text-green-300">
@@ -2652,7 +2883,7 @@ export default function Home() {
             <div className="text-center">
               <button
                 onClick={handleClick}
-                className="relative bg-blue-600 hover:bg-blue-500 active:bg-blue-700 transition-all duration-150 transform hover:scale-105 active:scale-95 rounded-full w-48 h-48 text-xl font-bold shadow-2xl border-4 border-blue-400 overflow-hidden group"
+                className="relative bg-blue-600 hover:bg-blue-500 active:bg-blue-700 transition-all duration-150 transform hover:scale-105 active:scale-95 rounded-full w-32 h-32 sm:w-40 sm:h-40 lg:w-48 lg:h-48 text-lg sm:text-xl font-bold shadow-2xl border-4 border-blue-400 overflow-hidden group"
                 style={{
                   animation: getActiveMultipliers().clickMultiplier > 1 || getActiveMultipliers().passiveMultiplier > 1 ? 'glow 2s infinite' : 'none'
                 }}
@@ -2660,8 +2891,8 @@ export default function Home() {
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-400/20 to-transparent"></div>
                 <div className="absolute inset-0 bg-blue-300/20 rounded-full scale-0 group-active:scale-100 transition-transform duration-150"></div>
                 <div className="relative z-10">
-                  🚔
-                  <div className="text-sm mt-2">CLICK TO PATROL</div>
+                  <div className="text-2xl sm:text-3xl lg:text-4xl">🚔</div>
+                  <div className="text-xs sm:text-sm mt-1 sm:mt-2">CLICK TO PATROL</div>
                 </div>
                 
                 {clickAnimations.map(anim => (
@@ -2684,18 +2915,18 @@ export default function Home() {
             </div>
           </div>
 
-          <div className="space-y-6">
-            <div className="bg-blue-800/50 rounded-lg p-6 backdrop-blur-sm border border-blue-600/30">
-              <h3 className="text-xl font-bold mb-4">👤 Click Upgrades</h3>
+          <div className="space-y-4 sm:space-y-6">
+            <div className="bg-blue-800/50 rounded-lg p-4 sm:p-6 backdrop-blur-sm border border-blue-600/30">
+              <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4">👤 Click Upgrades</h3>
               
               <div className="mb-4">
                 <div className="text-sm text-blue-200 mb-2">Purchase Quantity:</div>
-                <div className="flex flex-wrap gap-1">
+                <div className="flex flex-wrap gap-1 sm:gap-2">
                   {([1, 10, 100, 1000, 'max'] as const).map((qty) => (
                     <button
                       key={qty}
                       onClick={() => setPurchaseQuantity(qty)}
-                      className={`px-2 py-1 rounded text-xs font-semibold transition-colors ${
+                      className={`px-2 sm:px-3 py-1 sm:py-2 rounded text-xs sm:text-sm font-semibold transition-colors min-w-[40px] sm:min-w-[48px] ${
                         purchaseQuantity === qty
                           ? 'bg-blue-500 text-white border border-blue-300'
                           : 'bg-blue-700/50 text-blue-200 border border-blue-600/50 hover:bg-blue-600/50'
@@ -2711,7 +2942,7 @@ export default function Home() {
                 <button 
                   onClick={() => buyUpgrade('equipment')}
                   disabled={!canAfford('equipment')}
-                  className={`w-full text-left p-2 rounded border transition-all duration-300 ${
+                  className={`w-full text-left p-2 sm:p-3 rounded border transition-all duration-300 ${
                     canAfford('equipment') 
                       ? 'bg-blue-700/50 hover:bg-blue-600/50 border-blue-500/30 cursor-pointer hover:scale-102 hover:shadow-lg' 
                       : 'bg-gray-600/50 border-gray-500/30 cursor-not-allowed opacity-50'
@@ -2720,11 +2951,11 @@ export default function Home() {
                     animation: canAfford('equipment') ? 'pulse 2s infinite' : 'none'
                   }}
                 >
-                  <div className="font-semibold text-sm">🔧 Equipment ({gameState.upgrades.equipment.toString()})</div>
-                  <div className="text-xs text-blue-200">
+                  <div className="font-semibold text-sm sm:text-base">🔧 Equipment ({gameState.upgrades.equipment.toString()})</div>
+                  <div className="text-xs sm:text-sm text-blue-200">
                     {purchaseQuantity === 1 ? '+1 click value' : `+${purchaseQuantity === 'max' ? getMaxAffordableQuantity('equipment', gameState.upgrades.equipment, gameState.respectPoints).toString() : purchaseQuantity} click value`}
                   </div>
-                  <div className="text-xs text-yellow-300">
+                  <div className="text-xs sm:text-sm text-yellow-300">
                     Cost: {formatNumber(
                       purchaseQuantity === 1 
                         ? getUpgradeCost('equipment', gameState.upgrades.equipment)
@@ -2745,17 +2976,17 @@ export default function Home() {
                 <button 
                   onClick={() => buyUpgrade('training')}
                   disabled={!canAfford('training')}
-                  className={`w-full text-left p-2 rounded border transition-colors ${
+                  className={`w-full text-left p-2 sm:p-3 rounded border transition-colors ${
                     canAfford('training') 
                       ? 'bg-blue-700/50 hover:bg-blue-600/50 border-blue-500/30 cursor-pointer' 
                       : 'bg-gray-600/50 border-gray-500/30 cursor-not-allowed opacity-50'
                   }`}
                 >
-                  <div className="font-semibold text-sm">📚 Training ({gameState.upgrades.training.toString()})</div>
-                  <div className="text-xs text-blue-200">
+                  <div className="font-semibold text-sm sm:text-base">📚 Training ({gameState.upgrades.training.toString()})</div>
+                  <div className="text-xs sm:text-sm text-blue-200">
                     {purchaseQuantity === 1 ? '+2 click value' : `+${(purchaseQuantity === 'max' ? getMaxAffordableQuantity('training', gameState.upgrades.training, gameState.respectPoints) : new Decimal(purchaseQuantity)).mul(2).toString()} click value`}
                   </div>
-                  <div className="text-xs text-yellow-300">
+                  <div className="text-xs sm:text-sm text-yellow-300">
                     Cost: {formatNumber(
                       purchaseQuantity === 1 
                         ? getUpgradeCost('training', gameState.upgrades.training)
@@ -2775,20 +3006,20 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="bg-green-800/50 rounded-lg p-6 backdrop-blur-sm border border-green-600/30">
-              <h3 className="text-xl font-bold mb-4">💰 Passive Rank</h3>
+            <div className="bg-green-800/50 rounded-lg p-4 sm:p-6 backdrop-blur-sm border border-green-600/30">
+              <h3 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4">💰 Passive Rank</h3>
               <div className="space-y-2">
                 <button 
                   onClick={() => buyUpgrade('partner')}
                   disabled={!canAfford('partner')}
-                  className={`w-full text-left p-2 rounded border transition-colors ${
+                  className={`w-full text-left p-2 sm:p-3 rounded border transition-colors ${
                     canAfford('partner') 
                       ? 'bg-green-700/50 hover:bg-green-600/50 border-green-500/30 cursor-pointer' 
                       : 'bg-gray-600/50 border-gray-500/30 cursor-not-allowed opacity-50'
                   }`}
                 >
-                  <div className="font-semibold text-sm">👮 Partner ({gameState.upgrades.partner.toString()})</div>
-                  <div className="text-xs text-green-200">
+                  <div className="font-semibold text-sm sm:text-base">👮 Partner ({gameState.upgrades.partner.toString()})</div>
+                  <div className="text-xs sm:text-sm text-green-200">
                     {purchaseQuantity === 1 ? '+1 RP/sec' : `+${purchaseQuantity === 'max' ? getMaxAffordableQuantity('partner', gameState.upgrades.partner, gameState.respectPoints).toString() : purchaseQuantity} RP/sec`}
                   </div>
                   <div className="text-xs text-yellow-300">
@@ -3740,10 +3971,10 @@ export default function Home() {
 
       {/* Statistics Modal */}
       {showStatsModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 rounded-lg p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-gray-600">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-white">📊 Statistics & Analytics</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-gray-900 rounded-lg p-4 sm:p-6 max-w-4xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-y-auto border border-gray-600">
+            <div className="flex justify-between items-center mb-4 sm:mb-6">
+              <h2 className="text-xl sm:text-2xl font-bold text-white">📊 Statistics & Analytics</h2>
               <button
                 onClick={() => setShowStatsModal(false)}
                 className="text-gray-400 hover:text-white text-xl font-bold"
@@ -3935,10 +4166,10 @@ export default function Home() {
 
       {/* Import Save Modal */}
       {showImportModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-gray-900 rounded-lg p-6 max-w-2xl w-full border border-gray-600">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-white">📥 Import Save Data</h2>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+          <div className="bg-gray-900 rounded-lg p-4 sm:p-6 max-w-2xl w-full max-h-[95vh] overflow-y-auto border border-gray-600">
+            <div className="flex justify-between items-center mb-4 sm:mb-6">
+              <h2 className="text-lg sm:text-2xl font-bold text-white">📥 Import Save Data</h2>
               <button
                 onClick={() => {
                   setShowImportModal(false);
@@ -3997,6 +4228,36 @@ export default function Home() {
       )}
 
       <style jsx>{`
+        /* Mobile-specific improvements */
+        @media (max-width: 640px) {
+          .container {
+            padding-left: 1rem;
+            padding-right: 1rem;
+          }
+          
+          /* Improve touch targets for mobile */
+          button {
+            min-height: 44px;
+          }
+          
+          /* Prevent zoom on input focus */
+          input, select, textarea {
+            font-size: 16px;
+          }
+          
+          /* Better spacing for mobile modals */
+          .modal-content {
+            margin: 1rem;
+            max-height: 90vh;
+            overflow-y: auto;
+          }
+        }
+        
+        /* Prevent horizontal scroll on mobile */
+        body {
+          overflow-x: hidden;
+        }
+        
         @keyframes fadeUpOut {
           0% {
             opacity: 1;
