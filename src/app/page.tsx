@@ -8,6 +8,8 @@ interface GameState {
   clickValue: Decimal;
   rank: string;
   passiveIncome: Decimal;
+  legacyPoints: Decimal;
+  totalRP: Decimal; // Track lifetime RP for prestige calculation
   upgrades: {
     equipment: Decimal;
     training: Decimal;
@@ -16,6 +18,11 @@ interface GameState {
     investigation: Decimal;
     precinct: Decimal;
     automation: Decimal;
+  };
+  legacyUpgrades: {
+    efficiency: Decimal; // +10% income per level
+    wisdom: Decimal;     // -2% costs per level 
+    equipment: Decimal;  // Unlock upgrades earlier
   };
 }
 
@@ -34,6 +41,8 @@ export default function Home() {
     clickValue: new Decimal(1),
     rank: RANKS[0].name,
     passiveIncome: new Decimal(0),
+    legacyPoints: new Decimal(0),
+    totalRP: new Decimal(0),
     upgrades: {
       equipment: new Decimal(0),
       training: new Decimal(0),
@@ -42,6 +51,11 @@ export default function Home() {
       investigation: new Decimal(0),
       precinct: new Decimal(0),
       automation: new Decimal(0)
+    },
+    legacyUpgrades: {
+      efficiency: new Decimal(0),
+      wisdom: new Decimal(0),
+      equipment: new Decimal(0)
     }
   });
 
@@ -81,8 +95,23 @@ export default function Home() {
           loadedState.upgrades.automation = convertToDecimal(loadedState.upgrades.automation);
         }
         
+        // Handle legacy upgrades for backward compatibility
+        if (!loadedState.legacyUpgrades) {
+          loadedState.legacyUpgrades = {
+            efficiency: new Decimal(0),
+            wisdom: new Decimal(0),
+            equipment: new Decimal(0)
+          };
+        } else {
+          loadedState.legacyUpgrades.efficiency = convertToDecimal(loadedState.legacyUpgrades.efficiency);
+          loadedState.legacyUpgrades.wisdom = convertToDecimal(loadedState.legacyUpgrades.wisdom);
+          loadedState.legacyUpgrades.equipment = convertToDecimal(loadedState.legacyUpgrades.equipment);
+        }
+        
         // Convert main state values to Decimal
         loadedState.respectPoints = convertToDecimal(loadedState.respectPoints);
+        loadedState.legacyPoints = convertToDecimal(loadedState.legacyPoints);
+        loadedState.totalRP = convertToDecimal(loadedState.totalRP);
         
         if (!loadedState.rank) {
           loadedState.rank = RANKS[0].name;
@@ -92,13 +121,14 @@ export default function Home() {
         const rankIndex = RANKS.findIndex(rank => rank.name === loadedState.rank);
         const rankMultiplier = new Decimal(rankIndex >= 0 ? 1 + (rankIndex * 0.25) : 1);
         
-        // Calculate click value
+        // Calculate click value with legacy bonuses
         const baseClickValue = new Decimal(1);
         const equipmentBonus = loadedState.upgrades.equipment.mul(1);
         const trainingBonus = loadedState.upgrades.training.mul(2);
-        loadedState.clickValue = baseClickValue.add(equipmentBonus).add(trainingBonus).mul(rankMultiplier).floor();
+        const legacyMultiplier = new Decimal(1).add((loadedState.legacyUpgrades?.efficiency || new Decimal(0)).mul(0.1));
+        loadedState.clickValue = baseClickValue.add(equipmentBonus).add(trainingBonus).mul(rankMultiplier).mul(legacyMultiplier).floor();
         
-        // Calculate passive income (much more generous)
+        // Calculate passive income with legacy bonuses
         const partnerIncome = loadedState.upgrades.partner.mul(1);
         const patrolIncome = loadedState.upgrades.patrol.mul(3);
         const investigationIncome = loadedState.upgrades.investigation.mul(12);
@@ -108,7 +138,7 @@ export default function Home() {
           : new Decimal(1);
         
         const totalPassiveIncome = partnerIncome.add(patrolIncome).add(investigationIncome).add(precinctIncome).mul(automationBonus);
-        loadedState.passiveIncome = totalPassiveIncome.mul(rankMultiplier).floor();
+        loadedState.passiveIncome = totalPassiveIncome.mul(rankMultiplier).mul(legacyMultiplier).floor();
         
         setGameState(loadedState);
       } catch (e) {
@@ -128,6 +158,8 @@ export default function Home() {
             respectPoints: gameState.respectPoints.toString(),
             clickValue: gameState.clickValue.toString(),
             passiveIncome: gameState.passiveIncome.toString(),
+            legacyPoints: gameState.legacyPoints.toString(),
+            totalRP: gameState.totalRP.toString(),
             upgrades: {
               equipment: gameState.upgrades.equipment.toString(),
               training: gameState.upgrades.training.toString(),
@@ -136,6 +168,11 @@ export default function Home() {
               investigation: gameState.upgrades.investigation.toString(),
               precinct: gameState.upgrades.precinct.toString(),
               automation: gameState.upgrades.automation.toString(),
+            },
+            legacyUpgrades: {
+              efficiency: gameState.legacyUpgrades.efficiency.toString(),
+              wisdom: gameState.legacyUpgrades.wisdom.toString(),
+              equipment: gameState.legacyUpgrades.equipment.toString(),
             }
           };
           localStorage.setItem('cop-clicker-save', JSON.stringify(saveState));
@@ -157,6 +194,8 @@ export default function Home() {
           respectPoints: gameState.respectPoints.toString(),
           clickValue: gameState.clickValue.toString(),
           passiveIncome: gameState.passiveIncome.toString(),
+          legacyPoints: gameState.legacyPoints.toString(),
+          totalRP: gameState.totalRP.toString(),
           upgrades: {
             equipment: gameState.upgrades.equipment.toString(),
             training: gameState.upgrades.training.toString(),
@@ -165,6 +204,11 @@ export default function Home() {
             investigation: gameState.upgrades.investigation.toString(),
             precinct: gameState.upgrades.precinct.toString(),
             automation: gameState.upgrades.automation.toString(),
+          },
+          legacyUpgrades: {
+            efficiency: gameState.legacyUpgrades.efficiency.toString(),
+            wisdom: gameState.legacyUpgrades.wisdom.toString(),
+            equipment: gameState.legacyUpgrades.equipment.toString(),
           }
         };
         localStorage.setItem('cop-clicker-save', JSON.stringify(saveState));
@@ -180,7 +224,8 @@ export default function Home() {
       const passiveTimer = setInterval(() => {
         setGameState(prev => ({
           ...prev,
-          respectPoints: prev.respectPoints.add(prev.passiveIncome)
+          respectPoints: prev.respectPoints.add(prev.passiveIncome),
+          totalRP: prev.totalRP.add(prev.passiveIncome)
         }));
       }, 1000);
 
@@ -191,7 +236,8 @@ export default function Home() {
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     setGameState(prev => ({
       ...prev,
-      respectPoints: prev.respectPoints.add(prev.clickValue)
+      respectPoints: prev.respectPoints.add(prev.clickValue),
+      totalRP: prev.totalRP.add(prev.clickValue)
     }));
 
     const rect = event.currentTarget.getBoundingClientRect();
@@ -250,8 +296,9 @@ export default function Home() {
     
     const baseCost = baseCosts[upgradeType as keyof typeof baseCosts] || new Decimal(10);
     const scaling = scalingFactors[upgradeType as keyof typeof scalingFactors] || new Decimal(1.5);
+    const costReduction = getLegacyCostReduction();
     
-    return baseCost.mul(Decimal.pow(scaling, currentLevel)).floor();
+    return baseCost.mul(Decimal.pow(scaling, currentLevel)).mul(costReduction).floor();
   };
 
   const getBulkUpgradeCost = (upgradeType: string, currentLevel: Decimal, quantity: Decimal): Decimal => {
@@ -277,17 +324,18 @@ export default function Home() {
     
     const baseCost = baseCosts[upgradeType as keyof typeof baseCosts] || new Decimal(10);
     const scaling = scalingFactors[upgradeType as keyof typeof scalingFactors] || new Decimal(1.5);
+    const costReduction = getLegacyCostReduction();
     
     // Calculate geometric series sum: baseCost * scaling^currentLevel * (scaling^quantity - 1) / (scaling - 1)
     if (scaling.eq(1)) {
-      return baseCost.mul(currentLevel).mul(quantity);
+      return baseCost.mul(currentLevel).mul(quantity).mul(costReduction);
     }
     
     const startCost = baseCost.mul(Decimal.pow(scaling, currentLevel));
     const scalingPowerQuantity = Decimal.pow(scaling, quantity);
     const geometricSum = startCost.mul(scalingPowerQuantity.sub(1)).div(scaling.sub(1));
     
-    return geometricSum.floor();
+    return geometricSum.mul(costReduction).floor();
   };
 
   const getMaxAffordableQuantity = (upgradeType: string, currentLevel: Decimal, availableMoney: Decimal): Decimal => {
@@ -356,6 +404,85 @@ export default function Home() {
     return rankIndex >= 0 ? new Decimal(1 + (rankIndex * 0.25)) : new Decimal(1); // 25% bonus per rank
   };
 
+  const getLegacyMultiplier = (): Decimal => {
+    if (!gameState?.legacyUpgrades) return new Decimal(1);
+    // +10% per efficiency level
+    return new Decimal(1).add(gameState.legacyUpgrades.efficiency.mul(0.1));
+  };
+
+  const getLegacyCostReduction = (): Decimal => {
+    if (!gameState?.legacyUpgrades) return new Decimal(1);
+    // -2% cost per wisdom level, minimum 10% cost
+    const reduction = gameState.legacyUpgrades.wisdom.mul(0.02);
+    return Decimal.max(new Decimal(0.1), new Decimal(1).sub(reduction));
+  };
+
+  const calculatePrestigeGain = (): Decimal => {
+    if (!gameState?.totalRP) return new Decimal(0);
+    const prestigeThreshold = new Decimal(50000); // 50K RP
+    if (gameState.totalRP.lt(prestigeThreshold)) return new Decimal(0);
+    
+    // Formula: sqrt(totalRP / 50000)
+    return gameState.totalRP.div(prestigeThreshold).sqrt().floor();
+  };
+
+  const canPrestige = (): boolean => {
+    return calculatePrestigeGain().gt(0) && gameState.rank === "Chief";
+  };
+
+  const performPrestige = () => {
+    if (!canPrestige()) return;
+    
+    const legacyGain = calculatePrestigeGain();
+    
+    if (confirm(`Retire and gain ${legacyGain.toString()} Legacy Points? This will reset your progress but grant permanent bonuses.`)) {
+      setGameState(prev => ({
+        respectPoints: new Decimal(0),
+        clickValue: new Decimal(1),
+        rank: RANKS[0].name,
+        passiveIncome: new Decimal(0),
+        legacyPoints: prev.legacyPoints.add(legacyGain),
+        totalRP: new Decimal(0), // Reset for next prestige
+        upgrades: {
+          equipment: new Decimal(0),
+          training: new Decimal(0),
+          partner: new Decimal(0),
+          patrol: new Decimal(0),
+          investigation: new Decimal(0),
+          precinct: new Decimal(0),
+          automation: new Decimal(0)
+        },
+        legacyUpgrades: prev.legacyUpgrades // Keep legacy upgrades
+      }));
+    }
+  };
+
+  const getLegacyUpgradeCost = (upgradeType: 'efficiency' | 'wisdom' | 'equipment'): Decimal => {
+    const currentLevel = gameState.legacyUpgrades[upgradeType];
+    const baseCost = new Decimal(1);
+    const scaling = new Decimal(2); // 2x scaling for legacy upgrades
+    return baseCost.mul(Decimal.pow(scaling, currentLevel));
+  };
+
+  const canAffordLegacyUpgrade = (upgradeType: 'efficiency' | 'wisdom' | 'equipment'): boolean => {
+    return gameState.legacyPoints.gte(getLegacyUpgradeCost(upgradeType));
+  };
+
+  const buyLegacyUpgrade = (upgradeType: 'efficiency' | 'wisdom' | 'equipment') => {
+    const cost = getLegacyUpgradeCost(upgradeType);
+    
+    if (gameState.legacyPoints.gte(cost)) {
+      setGameState(prev => ({
+        ...prev,
+        legacyPoints: prev.legacyPoints.sub(cost),
+        legacyUpgrades: {
+          ...prev.legacyUpgrades,
+          [upgradeType]: prev.legacyUpgrades[upgradeType].add(1)
+        }
+      }));
+    }
+  };
+
   const saveGame = () => {
     try {
       const saveState = {
@@ -363,6 +490,8 @@ export default function Home() {
         respectPoints: gameState.respectPoints.toString(),
         clickValue: gameState.clickValue.toString(),
         passiveIncome: gameState.passiveIncome.toString(),
+        legacyPoints: gameState.legacyPoints.toString(),
+        totalRP: gameState.totalRP.toString(),
         upgrades: {
           equipment: gameState.upgrades.equipment.toString(),
           training: gameState.upgrades.training.toString(),
@@ -371,6 +500,11 @@ export default function Home() {
           investigation: gameState.upgrades.investigation.toString(),
           precinct: gameState.upgrades.precinct.toString(),
           automation: gameState.upgrades.automation.toString(),
+        },
+        legacyUpgrades: {
+          efficiency: gameState.legacyUpgrades.efficiency.toString(),
+          wisdom: gameState.legacyUpgrades.wisdom.toString(),
+          equipment: gameState.legacyUpgrades.equipment.toString(),
         }
       };
       localStorage.setItem('cop-clicker-save', JSON.stringify(saveState));
@@ -387,6 +521,8 @@ export default function Home() {
         clickValue: new Decimal(1),
         rank: RANKS[0].name,
         passiveIncome: new Decimal(0),
+        legacyPoints: new Decimal(0),
+        totalRP: new Decimal(0),
         upgrades: {
           equipment: new Decimal(0),
           training: new Decimal(0),
@@ -395,6 +531,11 @@ export default function Home() {
           investigation: new Decimal(0),
           precinct: new Decimal(0),
           automation: new Decimal(0)
+        },
+        legacyUpgrades: {
+          efficiency: new Decimal(0),
+          wisdom: new Decimal(0),
+          equipment: new Decimal(0)
         }
       });
     }
@@ -425,14 +566,15 @@ export default function Home() {
         };
 
         const rankMultiplier = getRankMultiplier();
+        const legacyMultiplier = getLegacyMultiplier();
 
-        // Calculate click value
+        // Calculate click value with legacy bonuses
         const baseClickValue = new Decimal(1);
         const equipmentBonus = newState.upgrades.equipment.mul(1);
         const trainingBonus = newState.upgrades.training.mul(2);
-        newState.clickValue = baseClickValue.add(equipmentBonus).add(trainingBonus).mul(rankMultiplier).floor();
+        newState.clickValue = baseClickValue.add(equipmentBonus).add(trainingBonus).mul(rankMultiplier).mul(legacyMultiplier).floor();
         
-        // Calculate passive income (much more generous)
+        // Calculate passive income with legacy bonuses
         const partnerIncome = newState.upgrades.partner.mul(1);
         const patrolIncome = newState.upgrades.patrol.mul(3);
         const investigationIncome = newState.upgrades.investigation.mul(12);
@@ -442,7 +584,7 @@ export default function Home() {
           : new Decimal(1);
         
         const totalPassiveIncome = partnerIncome.add(patrolIncome).add(investigationIncome).add(precinctIncome).mul(automationBonus);
-        newState.passiveIncome = totalPassiveIncome.mul(rankMultiplier).floor();
+        newState.passiveIncome = totalPassiveIncome.mul(rankMultiplier).mul(legacyMultiplier).floor();
 
         return newState;
       });
@@ -477,13 +619,14 @@ export default function Home() {
         const newState = { ...prev, rank: RANKS[nextRankIndex].name };
         const rankMultiplier = new Decimal(1 + (nextRankIndex * 0.25));
         
-        // Recalculate values with new rank bonus
+        // Recalculate values with new rank bonus and legacy bonuses
+        const legacyMultiplier = new Decimal(1).add((newState.legacyUpgrades?.efficiency || new Decimal(0)).mul(0.1));
         const baseClickValue = new Decimal(1);
         const equipmentBonus = newState.upgrades.equipment.mul(1);
         const trainingBonus = newState.upgrades.training.mul(2);
-        newState.clickValue = baseClickValue.add(equipmentBonus).add(trainingBonus).mul(rankMultiplier).floor();
+        newState.clickValue = baseClickValue.add(equipmentBonus).add(trainingBonus).mul(rankMultiplier).mul(legacyMultiplier).floor();
         
-        // Calculate passive income (much more generous)
+        // Calculate passive income with legacy bonuses
         const partnerIncome = newState.upgrades.partner.mul(1);
         const patrolIncome = newState.upgrades.patrol.mul(3);
         const investigationIncome = newState.upgrades.investigation.mul(12);
@@ -493,7 +636,7 @@ export default function Home() {
           : new Decimal(1);
         
         const totalPassiveIncome = partnerIncome.add(patrolIncome).add(investigationIncome).add(precinctIncome).mul(automationBonus);
-        newState.passiveIncome = totalPassiveIncome.mul(rankMultiplier).floor();
+        newState.passiveIncome = totalPassiveIncome.mul(rankMultiplier).mul(legacyMultiplier).floor();
         
         return newState;
       });
@@ -557,6 +700,11 @@ export default function Home() {
                   {rankMultiplier.gt(1) && (
                     <div className="text-sm text-yellow-300">
                       Rank Bonus: +{rankMultiplier.sub(1).mul(100).toFixed(0)}%
+                    </div>
+                  )}
+                  {gameState.legacyPoints.gt(0) && (
+                    <div className="text-sm text-purple-300">
+                      Legacy Bonus: +{getLegacyMultiplier().sub(1).mul(100).toFixed(0)}%
                     </div>
                   )}
                 </div>
@@ -868,6 +1016,100 @@ export default function Home() {
               </div>
             </div>
 
+            {gameState.legacyPoints.gt(0) || canPrestige() ? (
+              <div className="bg-purple-800/50 rounded-lg p-6 backdrop-blur-sm border border-purple-600/30 mb-6">
+                <h3 className="text-xl font-bold mb-4">🏆 Legacy System</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>Legacy Points:</span>
+                    <span className="text-purple-300 font-bold">{formatNumber(gameState.legacyPoints)}</span>
+                  </div>
+                  {gameState.legacyPoints.gt(0) && (
+                    <>
+                      <div className="flex justify-between">
+                        <span>Income Bonus:</span>
+                        <span className="text-green-300">+{getLegacyMultiplier().sub(1).mul(100).toFixed(0)}%</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Cost Reduction:</span>
+                        <span className="text-blue-300">-{new Decimal(1).sub(getLegacyCostReduction()).mul(100).toFixed(0)}%</span>
+                      </div>
+                    </>
+                  )}
+                  {canPrestige() && (
+                    <div className="mt-4 pt-2 border-t border-purple-500/30">
+                      <div className="text-center mb-2">
+                        <div className="text-purple-200">Ready to Retire!</div>
+                        <div className="text-sm text-purple-300">
+                          Gain {formatNumber(calculatePrestigeGain())} Legacy Points
+                        </div>
+                      </div>
+                      <button
+                        onClick={performPrestige}
+                        className="w-full p-2 bg-purple-600 hover:bg-purple-500 rounded text-sm font-semibold transition-colors"
+                      >
+                        🏆 Retire (Prestige)
+                      </button>
+                    </div>
+                  )}
+                  {!canPrestige() && gameState.rank !== "Chief" && (
+                    <div className="text-xs text-gray-400 mt-2">
+                      Reach Chief rank to unlock retirement
+                    </div>
+                  )}
+                </div>
+              </div>
+            ) : null}
+
+            {gameState.legacyPoints.gt(0) && (
+              <div className="bg-purple-800/50 rounded-lg p-6 backdrop-blur-sm border border-purple-600/30 mb-6">
+                <h3 className="text-xl font-bold mb-4">💎 Legacy Upgrades</h3>
+                <div className="space-y-2">
+                  <button 
+                    onClick={() => buyLegacyUpgrade('efficiency')}
+                    disabled={!canAffordLegacyUpgrade('efficiency')}
+                    className={`w-full text-left p-2 rounded border transition-colors ${
+                      canAffordLegacyUpgrade('efficiency') 
+                        ? 'bg-purple-700/50 hover:bg-purple-600/50 border-purple-500/30 cursor-pointer' 
+                        : 'bg-gray-600/50 border-gray-500/30 cursor-not-allowed opacity-50'
+                    }`}
+                  >
+                    <div className="font-semibold text-sm">⚡ Legacy Efficiency ({gameState.legacyUpgrades.efficiency.toString()})</div>
+                    <div className="text-xs text-purple-200">+10% income per level</div>
+                    <div className="text-xs text-yellow-300">Cost: {formatNumber(getLegacyUpgradeCost('efficiency'))} LP</div>
+                  </button>
+                  
+                  <button 
+                    onClick={() => buyLegacyUpgrade('wisdom')}
+                    disabled={!canAffordLegacyUpgrade('wisdom')}
+                    className={`w-full text-left p-2 rounded border transition-colors ${
+                      canAffordLegacyUpgrade('wisdom') 
+                        ? 'bg-purple-700/50 hover:bg-purple-600/50 border-purple-500/30 cursor-pointer' 
+                        : 'bg-gray-600/50 border-gray-500/30 cursor-not-allowed opacity-50'
+                    }`}
+                  >
+                    <div className="font-semibold text-sm">🧠 Legacy Wisdom ({gameState.legacyUpgrades.wisdom.toString()})</div>
+                    <div className="text-xs text-purple-200">-2% upgrade costs per level</div>
+                    <div className="text-xs text-yellow-300">Cost: {formatNumber(getLegacyUpgradeCost('wisdom'))} LP</div>
+                  </button>
+                  
+                  <button 
+                    onClick={() => buyLegacyUpgrade('equipment')}
+                    disabled={!canAffordLegacyUpgrade('equipment')}
+                    className={`w-full text-left p-2 rounded border transition-colors ${
+                      canAffordLegacyUpgrade('equipment') 
+                        ? 'bg-purple-700/50 hover:bg-purple-600/50 border-purple-500/30 cursor-pointer' 
+                        : 'bg-gray-600/50 border-gray-500/30 cursor-not-allowed opacity-50'
+                    }`}
+                  >
+                    <div className="font-semibold text-sm">🔨 Legacy Equipment ({gameState.legacyUpgrades.equipment.toString()})</div>
+                    <div className="text-xs text-purple-200">Unlock upgrades earlier (coming soon)</div>
+                    <div className="text-xs text-yellow-300">Cost: {formatNumber(getLegacyUpgradeCost('equipment'))} LP</div>
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="bg-blue-800/50 rounded-lg p-6 backdrop-blur-sm border border-blue-600/30">
               <h3 className="text-xl font-bold mb-4">Statistics</h3>
               <div className="space-y-2 text-sm">
@@ -915,6 +1157,21 @@ export default function Home() {
                   <span>🤖 AI Systems:</span>
                   <span>{gameState.upgrades.automation.toString()}</span>
                 </div>
+                {gameState.legacyPoints.gt(0) && (
+                  <>
+                    <div className="border-t border-blue-500/30 pt-2 mt-2">
+                      <div className="text-purple-200 font-semibold mb-1">Legacy Stats:</div>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Total Legacy Points:</span>
+                      <span className="text-purple-300">{formatNumber(gameState.legacyPoints)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Lifetime RP:</span>
+                      <span>{formatNumber(gameState.totalRP)}</span>
+                    </div>
+                  </>
+                )}
               </div>
               
               <div className="mt-4 space-y-2">

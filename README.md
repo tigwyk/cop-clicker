@@ -32,6 +32,18 @@ A browser-based clicker game where players progress through a police officer's c
 **⚡ Automation:**
 - **🤖 AI System**: +50% passive income multiplier (starts at 5K RP, 2.5x scaling)
 
+### Prestige System
+**🏆 Retirement Mechanic:**
+- **Unlock Requirement**: Reach Chief rank (50K RP)
+- **Legacy Points**: Gain √(totalRP/50000) Legacy Points on retirement
+- **Full Reset**: All progress resets except Legacy Points and Legacy Upgrades
+- **Bulk Purchasing**: 1x, 10x, 100x, 1000x, and Max quantity options
+
+**💎 Legacy Upgrades:**
+- **⚡ Legacy Efficiency**: +10% income per level (cost: 2^level LP)
+- **🧠 Legacy Wisdom**: -2% upgrade costs per level (cost: 2^level LP)
+- **🔨 Legacy Equipment**: Future unlock system (cost: 2^level LP)
+
 **Progression Design:**
 - Gentler cost scaling for early passive income access
 - Multiple tiers of passive generators for meaningful progression
@@ -96,10 +108,10 @@ npx tsc --noEmit
 - [x] Visual feedback and animations
 - [x] Responsive UI design
 
-### 🔄 Phase 2: Core Progression (Planned)
-- [ ] Prestige system ("Retirement" mechanic)
-- [ ] Legacy Points currency
-- [ ] Permanent progression bonuses
+### ✅ Phase 2: Core Progression (In Progress)
+- [x] Prestige system ("Retirement" mechanic)
+- [x] Legacy Points currency
+- [x] Permanent progression bonuses
 - [ ] Achievement system
 - [ ] Case-solving mini-games
 - [ ] Random events
