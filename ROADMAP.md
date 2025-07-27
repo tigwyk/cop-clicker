@@ -101,6 +101,42 @@ An incremental clicker game where players progress through a cop's career, earni
 - Progression velocity through ranks
 - Feature adoption rates
 
+## Stretch Goals: Advanced Progression Mechanics
+
+*Inspired by successful incremental games like Kittens Game*
+
+### Advanced Scaling Systems
+- [ ] Replace linear cost scaling with exponential (1.15x multiplier per purchase)
+- [ ] Implement multi-tier resource hierarchy with different persistence rules
+- [ ] Add technology/training unlock gates at specific Respect Point thresholds
+- [ ] Create nested effect systems where bonuses stack multiplicatively
+
+### Enhanced Prestige Design
+- [ ] Exponential prestige costs (5→25→50→75→100→150 pattern)
+- [ ] Multiple prestige effect categories:
+  - Economic bonuses (price reductions, income multipliers)
+  - Personnel bonuses (officer efficiency, recruitment speed)
+  - Operational improvements (case solving speed, equipment effectiveness)
+  - Special abilities (corruption resistance, community relations)
+
+### Balance & Infrastructure Systems
+- [ ] Energy/resource balance requirements (equipment + training + personnel ratios)
+- [ ] Diminishing returns on certain mechanics to prevent runaway growth
+- [ ] Infrastructure dependencies (radio systems require maintenance, vehicles need fuel)
+- [ ] Mathematical constants as meaningful progression milestones
+
+### Late-Game Automation & Quality of Life
+- [ ] Granular automation controls for different game systems
+- [ ] Advanced statistics and optimization guidance
+- [ ] Multiple parallel progression systems for varied gameplay
+- [ ] Resource persistence rules across prestige resets
+
+### Complex Interdependencies
+- [ ] Department specialization branches (Traffic, Narcotics, Homicide, etc.)
+- [ ] Cross-department synergy bonuses
+- [ ] Dynamic difficulty scaling based on progression speed
+- [ ] Seasonal events with temporary progression modifiers
+
 ---
 
 *This roadmap is subject to iteration based on user feedback and development insights.*
