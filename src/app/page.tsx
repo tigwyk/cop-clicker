@@ -3,6 +3,24 @@
 import { useState, useEffect } from "react";
 import Decimal from "break_eternity.js";
 
+interface Achievement {
+  id: string;
+  title: string;
+  description: string;
+  category: 'progress' | 'upgrades' | 'efficiency' | 'legacy' | 'time' | 'special';
+  criteria: {
+    type: 'total_rp' | 'rank' | 'upgrade_count' | 'click_power' | 'passive_income' | 'prestige_count' | 'play_time' | 'special';
+    target: Decimal | string | number;
+    upgradeType?: string;
+  };
+  reward: {
+    type: 'rp' | 'legacy_points' | 'multiplier';
+    amount: Decimal;
+  };
+  unlocked: boolean;
+  claimed: boolean;
+}
+
 interface GameState {
   respectPoints: Decimal;
   clickValue: Decimal;
@@ -10,6 +28,8 @@ interface GameState {
   passiveIncome: Decimal;
   legacyPoints: Decimal;
   totalRP: Decimal; // Track lifetime RP for prestige calculation
+  prestigeCount: Decimal;
+  playTime: number; // in seconds
   upgrades: {
     equipment: Decimal;
     training: Decimal;
@@ -24,6 +44,7 @@ interface GameState {
     wisdom: Decimal;     // -2% costs per level 
     equipment: Decimal;  // Unlock upgrades earlier
   };
+  achievements: Achievement[];
 }
 
 const RANKS = [
@@ -35,6 +56,128 @@ const RANKS = [
   { name: "Chief", requirement: new Decimal(50000) }
 ];
 
+const INITIAL_ACHIEVEMENTS: Achievement[] = [
+  // Progress Milestones
+  {
+    id: 'first_click',
+    title: 'First Day on the Beat',
+    description: 'Earn your first Respect Point',
+    category: 'progress',
+    criteria: { type: 'total_rp', target: new Decimal(1) },
+    reward: { type: 'rp', amount: new Decimal(10) },
+    unlocked: false,
+    claimed: false
+  },
+  {
+    id: 'hundred_rp',
+    title: 'Making Progress',
+    description: 'Earn 100 Respect Points',
+    category: 'progress',
+    criteria: { type: 'total_rp', target: new Decimal(100) },
+    reward: { type: 'rp', amount: new Decimal(50) },
+    unlocked: false,
+    claimed: false
+  },
+  {
+    id: 'detective_rank',
+    title: 'Detective Shield',
+    description: 'Reach Detective rank',
+    category: 'progress',
+    criteria: { type: 'rank', target: 'Detective' },
+    reward: { type: 'rp', amount: new Decimal(100) },
+    unlocked: false,
+    claimed: false
+  },
+  {
+    id: 'chief_rank',
+    title: 'Top of the Force',
+    description: 'Reach Chief rank',
+    category: 'progress',
+    criteria: { type: 'rank', target: 'Chief' },
+    reward: { type: 'legacy_points', amount: new Decimal(1) },
+    unlocked: false,
+    claimed: false
+  },
+  
+  // Upgrade Mastery
+  {
+    id: 'first_upgrade',
+    title: 'Self Improvement',
+    description: 'Purchase your first upgrade',
+    category: 'upgrades',
+    criteria: { type: 'upgrade_count', target: new Decimal(1) },
+    reward: { type: 'rp', amount: new Decimal(25) },
+    unlocked: false,
+    claimed: false
+  },
+  {
+    id: 'ten_partners',
+    title: 'Squad Leader',
+    description: 'Have 10 Partners',
+    category: 'upgrades',
+    criteria: { type: 'upgrade_count', target: new Decimal(10), upgradeType: 'partner' },
+    reward: { type: 'rp', amount: new Decimal(200) },
+    unlocked: false,
+    claimed: false
+  },
+  {
+    id: 'automation_master',
+    title: 'Tech Savvy',
+    description: 'Purchase 5 AI Systems',
+    category: 'upgrades',
+    criteria: { type: 'upgrade_count', target: new Decimal(5), upgradeType: 'automation' },
+    reward: { type: 'legacy_points', amount: new Decimal(1) },
+    unlocked: false,
+    claimed: false
+  },
+  
+  // Efficiency Goals
+  {
+    id: 'strong_clicks',
+    title: 'Power Patrol',
+    description: 'Reach 100 click power',
+    category: 'efficiency',
+    criteria: { type: 'click_power', target: new Decimal(100) },
+    reward: { type: 'rp', amount: new Decimal(500) },
+    unlocked: false,
+    claimed: false
+  },
+  {
+    id: 'passive_income',
+    title: 'Efficient Officer',
+    description: 'Reach 50 passive income per second',
+    category: 'efficiency',
+    criteria: { type: 'passive_income', target: new Decimal(50) },
+    reward: { type: 'rp', amount: new Decimal(1000) },
+    unlocked: false,
+    claimed: false
+  },
+  
+  // Legacy Achievements
+  {
+    id: 'first_prestige',
+    title: 'Retirement Ceremony',
+    description: 'Complete your first prestige',
+    category: 'legacy',
+    criteria: { type: 'prestige_count', target: new Decimal(1) },
+    reward: { type: 'legacy_points', amount: new Decimal(2) },
+    unlocked: false,
+    claimed: false
+  },
+  
+  // Special Challenges
+  {
+    id: 'millionaire',
+    title: 'Respected Veteran',
+    description: 'Earn 1 Million total Respect Points',
+    category: 'special',
+    criteria: { type: 'total_rp', target: new Decimal(1000000) },
+    reward: { type: 'legacy_points', amount: new Decimal(5) },
+    unlocked: false,
+    claimed: false
+  }
+];
+
 export default function Home() {
   const [gameState, setGameState] = useState<GameState>({
     respectPoints: new Decimal(0),
@@ -43,6 +186,8 @@ export default function Home() {
     passiveIncome: new Decimal(0),
     legacyPoints: new Decimal(0),
     totalRP: new Decimal(0),
+    prestigeCount: new Decimal(0),
+    playTime: 0,
     upgrades: {
       equipment: new Decimal(0),
       training: new Decimal(0),
@@ -56,12 +201,14 @@ export default function Home() {
       efficiency: new Decimal(0),
       wisdom: new Decimal(0),
       equipment: new Decimal(0)
-    }
+    },
+    achievements: [...INITIAL_ACHIEVEMENTS]
   });
 
   const [clickAnimations, setClickAnimations] = useState<Array<{id: number, x: number, y: number}>>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [purchaseQuantity, setPurchaseQuantity] = useState<number | 'max'>(1);
+  const [achievementNotifications, setAchievementNotifications] = useState<Achievement[]>([]);
 
   useEffect(() => {
     const savedGame = localStorage.getItem('cop-clicker-save');
@@ -112,6 +259,18 @@ export default function Home() {
         loadedState.respectPoints = convertToDecimal(loadedState.respectPoints);
         loadedState.legacyPoints = convertToDecimal(loadedState.legacyPoints);
         loadedState.totalRP = convertToDecimal(loadedState.totalRP);
+        loadedState.prestigeCount = convertToDecimal(loadedState.prestigeCount);
+        loadedState.playTime = loadedState.playTime || 0;
+        
+        // Handle achievements for backward compatibility
+        if (!loadedState.achievements) {
+          loadedState.achievements = [...INITIAL_ACHIEVEMENTS];
+        } else {
+          // Merge with new achievements while preserving progress
+          const loadedAchievementIds = loadedState.achievements.map((a: Achievement) => a.id);
+          const newAchievements = INITIAL_ACHIEVEMENTS.filter(a => !loadedAchievementIds.includes(a.id));
+          loadedState.achievements = [...loadedState.achievements, ...newAchievements];
+        }
         
         if (!loadedState.rank) {
           loadedState.rank = RANKS[0].name;
@@ -160,6 +319,7 @@ export default function Home() {
             passiveIncome: gameState.passiveIncome.toString(),
             legacyPoints: gameState.legacyPoints.toString(),
             totalRP: gameState.totalRP.toString(),
+            prestigeCount: gameState.prestigeCount.toString(),
             upgrades: {
               equipment: gameState.upgrades.equipment.toString(),
               training: gameState.upgrades.training.toString(),
@@ -196,6 +356,7 @@ export default function Home() {
           passiveIncome: gameState.passiveIncome.toString(),
           legacyPoints: gameState.legacyPoints.toString(),
           totalRP: gameState.totalRP.toString(),
+          prestigeCount: gameState.prestigeCount.toString(),
           upgrades: {
             equipment: gameState.upgrades.equipment.toString(),
             training: gameState.upgrades.training.toString(),
@@ -232,6 +393,20 @@ export default function Home() {
       return () => clearInterval(passiveTimer);
     }
   }, [gameState.passiveIncome, isLoaded]);
+
+  // Track play time
+  useEffect(() => {
+    if (isLoaded) {
+      const playTimer = setInterval(() => {
+        setGameState(prev => ({
+          ...prev,
+          playTime: prev.playTime + 1
+        }));
+      }, 1000);
+
+      return () => clearInterval(playTimer);
+    }
+  }, [isLoaded]);
 
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     setGameState(prev => ({
@@ -443,6 +618,8 @@ export default function Home() {
         passiveIncome: new Decimal(0),
         legacyPoints: prev.legacyPoints.add(legacyGain),
         totalRP: new Decimal(0), // Reset for next prestige
+        prestigeCount: prev.prestigeCount.add(1),
+        playTime: prev.playTime, // Keep play time
         upgrades: {
           equipment: new Decimal(0),
           training: new Decimal(0),
@@ -452,7 +629,8 @@ export default function Home() {
           precinct: new Decimal(0),
           automation: new Decimal(0)
         },
-        legacyUpgrades: prev.legacyUpgrades // Keep legacy upgrades
+        legacyUpgrades: prev.legacyUpgrades, // Keep legacy upgrades
+        achievements: prev.achievements // Keep achievements
       }));
     }
   };
@@ -483,6 +661,100 @@ export default function Home() {
     }
   };
 
+  const checkAchievements = () => {
+    const newlyUnlocked: Achievement[] = [];
+    
+    setGameState(prev => {
+      const updatedAchievements = prev.achievements.map(achievement => {
+        if (achievement.unlocked || achievement.claimed) return achievement;
+        
+        let shouldUnlock = false;
+        
+        switch (achievement.criteria.type) {
+          case 'total_rp':
+            shouldUnlock = prev.totalRP.gte(achievement.criteria.target as Decimal);
+            break;
+          case 'rank':
+            shouldUnlock = prev.rank === achievement.criteria.target;
+            break;
+          case 'upgrade_count':
+            if (achievement.criteria.upgradeType) {
+              const upgradeLevel = prev.upgrades[achievement.criteria.upgradeType as keyof typeof prev.upgrades];
+              shouldUnlock = upgradeLevel.gte(achievement.criteria.target as Decimal);
+            } else {
+              // Total upgrades count
+              const totalUpgrades = Object.values(prev.upgrades).reduce((sum, level) => sum.add(level), new Decimal(0));
+              shouldUnlock = totalUpgrades.gte(achievement.criteria.target as Decimal);
+            }
+            break;
+          case 'click_power':
+            shouldUnlock = prev.clickValue.gte(achievement.criteria.target as Decimal);
+            break;
+          case 'passive_income':
+            shouldUnlock = prev.passiveIncome.gte(achievement.criteria.target as Decimal);
+            break;
+          case 'prestige_count':
+            shouldUnlock = prev.prestigeCount.gte(achievement.criteria.target as Decimal);
+            break;
+          case 'play_time':
+            shouldUnlock = prev.playTime >= (achievement.criteria.target as number);
+            break;
+        }
+        
+        if (shouldUnlock && !achievement.unlocked) {
+          newlyUnlocked.push(achievement);
+          return { ...achievement, unlocked: true };
+        }
+        
+        return achievement;
+      });
+      
+      return { ...prev, achievements: updatedAchievements };
+    });
+    
+    // Show notifications for newly unlocked achievements
+    if (newlyUnlocked.length > 0) {
+      setAchievementNotifications(prev => [...prev, ...newlyUnlocked]);
+    }
+  };
+
+  const claimAchievement = (achievementId: string) => {
+    const achievement = gameState.achievements.find(a => a.id === achievementId);
+    if (!achievement || !achievement.unlocked || achievement.claimed) return;
+    
+    setGameState(prev => {
+      const updatedAchievements = prev.achievements.map(a => 
+        a.id === achievementId ? { ...a, claimed: true } : a
+      );
+      
+      let updatedState = { ...prev, achievements: updatedAchievements };
+      
+      // Apply rewards
+      switch (achievement.reward.type) {
+        case 'rp':
+          updatedState.respectPoints = updatedState.respectPoints.add(achievement.reward.amount);
+          updatedState.totalRP = updatedState.totalRP.add(achievement.reward.amount);
+          break;
+        case 'legacy_points':
+          updatedState.legacyPoints = updatedState.legacyPoints.add(achievement.reward.amount);
+          break;
+      }
+      
+      return updatedState;
+    });
+  };
+
+  const dismissNotification = (achievementId: string) => {
+    setAchievementNotifications(prev => prev.filter(a => a.id !== achievementId));
+  };
+
+  // Check achievements whenever game state changes
+  useEffect(() => {
+    if (isLoaded) {
+      checkAchievements();
+    }
+  }, [gameState.totalRP, gameState.rank, gameState.clickValue, gameState.passiveIncome, gameState.prestigeCount, gameState.upgrades, isLoaded]);
+
   const saveGame = () => {
     try {
       const saveState = {
@@ -492,6 +764,7 @@ export default function Home() {
         passiveIncome: gameState.passiveIncome.toString(),
         legacyPoints: gameState.legacyPoints.toString(),
         totalRP: gameState.totalRP.toString(),
+        prestigeCount: gameState.prestigeCount.toString(),
         upgrades: {
           equipment: gameState.upgrades.equipment.toString(),
           training: gameState.upgrades.training.toString(),
@@ -523,6 +796,8 @@ export default function Home() {
         passiveIncome: new Decimal(0),
         legacyPoints: new Decimal(0),
         totalRP: new Decimal(0),
+        prestigeCount: new Decimal(0),
+        playTime: 0,
         upgrades: {
           equipment: new Decimal(0),
           training: new Decimal(0),
@@ -536,7 +811,8 @@ export default function Home() {
           efficiency: new Decimal(0),
           wisdom: new Decimal(0),
           equipment: new Decimal(0)
-        }
+        },
+        achievements: [...INITIAL_ACHIEVEMENTS]
       });
     }
   };
@@ -681,6 +957,38 @@ export default function Home() {
           <h1 className="text-4xl font-bold mb-2">Cop Clicker</h1>
           <p className="text-blue-200">Rise Through the Ranks</p>
         </header>
+
+        {/* Achievement Notifications */}
+        <div className="fixed top-4 right-4 z-50 space-y-2">
+          {achievementNotifications.map((achievement) => (
+            <div
+              key={achievement.id}
+              className="bg-yellow-600 border border-yellow-400 rounded-lg p-4 shadow-lg animate-pulse max-w-sm"
+            >
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-bold text-sm">🏆 Achievement Unlocked!</div>
+                  <div className="text-sm font-semibold">{achievement.title}</div>
+                  <div className="text-xs text-yellow-100">{achievement.description}</div>
+                  <div className="text-xs text-yellow-200 mt-1">
+                    Reward: {achievement.reward.type === 'rp' ? `${formatNumber(achievement.reward.amount)} RP` : 
+                             achievement.reward.type === 'legacy_points' ? `${formatNumber(achievement.reward.amount)} LP` : 
+                             'Multiplier Bonus'}
+                  </div>
+                </div>
+                <button
+                  onClick={() => {
+                    claimAchievement(achievement.id);
+                    dismissNotification(achievement.id);
+                  }}
+                  className="ml-2 bg-yellow-500 hover:bg-yellow-400 text-yellow-900 px-2 py-1 rounded text-xs font-bold"
+                >
+                  Claim
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
 
         <div className="max-w-4xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2">
@@ -1109,6 +1417,57 @@ export default function Home() {
                 </div>
               </div>
             )}
+
+            <div className="bg-yellow-800/50 rounded-lg p-6 backdrop-blur-sm border border-yellow-600/30 mb-6">
+              <h3 className="text-xl font-bold mb-4">🏆 Achievements</h3>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {gameState.achievements.filter(a => a.unlocked).length > 0 ? (
+                  gameState.achievements
+                    .filter(a => a.unlocked)
+                    .sort((a, b) => (b.claimed ? 0 : 1) - (a.claimed ? 0 : 1)) // Unclaimed first
+                    .map(achievement => (
+                      <div
+                        key={achievement.id}
+                        className={`p-2 rounded border transition-colors ${
+                          achievement.claimed 
+                            ? 'bg-gray-600/50 border-gray-500/30 opacity-60' 
+                            : 'bg-yellow-700/50 border-yellow-500/30'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="font-semibold text-sm flex items-center">
+                              {achievement.claimed ? '✅' : '🏆'} {achievement.title}
+                            </div>
+                            <div className="text-xs text-yellow-200">{achievement.description}</div>
+                            <div className="text-xs text-yellow-300">
+                              Reward: {achievement.reward.type === 'rp' ? `${formatNumber(achievement.reward.amount)} RP` : 
+                                       achievement.reward.type === 'legacy_points' ? `${formatNumber(achievement.reward.amount)} LP` : 
+                                       'Multiplier Bonus'}
+                            </div>
+                          </div>
+                          {!achievement.claimed && (
+                            <button
+                              onClick={() => claimAchievement(achievement.id)}
+                              className="ml-2 bg-yellow-600 hover:bg-yellow-500 text-white px-2 py-1 rounded text-xs font-semibold"
+                            >
+                              Claim
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                ) : (
+                  <div className="text-center text-yellow-300 text-sm py-4">
+                    No achievements unlocked yet. Keep playing to earn your first achievement!
+                  </div>
+                )}
+                
+                <div className="text-center text-xs text-yellow-400 mt-4">
+                  {gameState.achievements.filter(a => a.unlocked).length} / {gameState.achievements.length} achievements unlocked
+                </div>
+              </div>
+            </div>
 
             <div className="bg-blue-800/50 rounded-lg p-6 backdrop-blur-sm border border-blue-600/30">
               <h3 className="text-xl font-bold mb-4">Statistics</h3>

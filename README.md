@@ -44,6 +44,21 @@ A browser-based clicker game where players progress through a police officer's c
 - **🧠 Legacy Wisdom**: -2% upgrade costs per level (cost: 2^level LP)
 - **🔨 Legacy Equipment**: Future unlock system (cost: 2^level LP)
 
+### Achievement System
+**🏆 Achievement Categories:**
+- **Progress Milestones**: RP thresholds, rank achievements
+- **Upgrade Mastery**: Purchase certain amounts of upgrades
+- **Efficiency Goals**: Income/click power milestones
+- **Legacy Achievements**: Prestige-related accomplishments
+- **Special Challenges**: Unique gameplay goals
+
+**🎯 Achievement Features:**
+- **Real-time Checking**: Achievements unlock automatically when criteria are met
+- **Instant Notifications**: Pop-up notifications with claim buttons
+- **Reward System**: RP bonuses, Legacy Points, or progress boosts
+- **Progress Tracking**: Visual progress counter showing unlocked achievements
+- **Persistent Progress**: Achievements survive prestige and game resets
+
 **Progression Design:**
 - Gentler cost scaling for early passive income access
 - Multiple tiers of passive generators for meaningful progression
@@ -112,7 +127,7 @@ npx tsc --noEmit
 - [x] Prestige system ("Retirement" mechanic)
 - [x] Legacy Points currency
 - [x] Permanent progression bonuses
-- [ ] Achievement system
+- [x] Achievement system
 - [ ] Case-solving mini-games
 - [ ] Random events
 
