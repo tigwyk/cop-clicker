@@ -1975,7 +1975,10 @@ export default function Home() {
           {achievementNotifications.map((achievement) => (
             <div
               key={achievement.id}
-              className="bg-yellow-600 border border-yellow-400 rounded-lg p-4 shadow-lg animate-pulse max-w-sm"
+              className="bg-gradient-to-r from-yellow-600 to-yellow-500 border border-yellow-400 rounded-lg p-4 shadow-2xl max-w-sm transform transition-all duration-300 hover:scale-105"
+              style={{
+                animation: 'pulse 1s infinite, glow 2s infinite'
+              }}
             >
               <div className="flex items-center justify-between">
                 <div>
@@ -2083,9 +2086,13 @@ export default function Home() {
             <div className="text-center">
               <button
                 onClick={handleClick}
-                className="relative bg-blue-600 hover:bg-blue-500 active:bg-blue-700 transition-all duration-150 transform hover:scale-105 active:scale-95 rounded-full w-48 h-48 text-xl font-bold shadow-2xl border-4 border-blue-400 overflow-hidden"
+                className="relative bg-blue-600 hover:bg-blue-500 active:bg-blue-700 transition-all duration-150 transform hover:scale-105 active:scale-95 rounded-full w-48 h-48 text-xl font-bold shadow-2xl border-4 border-blue-400 overflow-hidden group"
+                style={{
+                  animation: getActiveMultipliers().clickMultiplier > 1 || getActiveMultipliers().passiveMultiplier > 1 ? 'glow 2s infinite' : 'none'
+                }}
               >
                 <div className="absolute inset-0 bg-gradient-to-br from-blue-400/20 to-transparent"></div>
+                <div className="absolute inset-0 bg-blue-300/20 rounded-full scale-0 group-active:scale-100 transition-transform duration-150"></div>
                 <div className="relative z-10">
                   🚔
                   <div className="text-sm mt-2">CLICK TO PATROL</div>
@@ -2094,11 +2101,14 @@ export default function Home() {
                 {clickAnimations.map(anim => (
                   <div
                     key={anim.id}
-                    className="absolute pointer-events-none text-yellow-300 font-bold text-lg animate-ping"
+                    className="absolute pointer-events-none font-bold text-lg"
                     style={{
                       left: anim.x - 10,
                       top: anim.y - 10,
-                      animation: 'fadeUpOut 1s ease-out forwards'
+                      animation: 'floatUp 1.5s ease-out forwards',
+                      color: anim.value && anim.value.gte(1000) ? '#fbbf24' : 
+                             anim.value && anim.value.gte(100) ? '#10b981' : '#60a5fa',
+                      textShadow: '0 0 8px currentColor'
                     }}
                   >
                     +{anim.value ? formatNumber(anim.value) : gameState.clickValue.toString()}
@@ -2135,11 +2145,14 @@ export default function Home() {
                 <button 
                   onClick={() => buyUpgrade('equipment')}
                   disabled={!canAfford('equipment')}
-                  className={`w-full text-left p-2 rounded border transition-colors ${
+                  className={`w-full text-left p-2 rounded border transition-all duration-300 ${
                     canAfford('equipment') 
-                      ? 'bg-blue-700/50 hover:bg-blue-600/50 border-blue-500/30 cursor-pointer' 
+                      ? 'bg-blue-700/50 hover:bg-blue-600/50 border-blue-500/30 cursor-pointer hover:scale-102 hover:shadow-lg' 
                       : 'bg-gray-600/50 border-gray-500/30 cursor-not-allowed opacity-50'
                   }`}
+                  style={{
+                    animation: canAfford('equipment') ? 'pulse 2s infinite' : 'none'
+                  }}
                 >
                   <div className="font-semibold text-sm">🔧 Equipment ({gameState.upgrades.equipment.toString()})</div>
                   <div className="text-xs text-blue-200">
@@ -2963,6 +2976,41 @@ export default function Home() {
           100% {
             opacity: 0;
             transform: translateY(-50px);
+          }
+        }
+        
+        @keyframes floatUp {
+          0% {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+          25% {
+            transform: translateY(-15px) scale(1.1);
+          }
+          50% {
+            transform: translateY(-30px) scale(1.05);
+          }
+          100% {
+            opacity: 0;
+            transform: translateY(-60px) scale(0.8);
+          }
+        }
+        
+        @keyframes pulse {
+          0%, 100% {
+            transform: scale(1);
+          }
+          50% {
+            transform: scale(1.05);
+          }
+        }
+        
+        @keyframes glow {
+          0%, 100% {
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+          }
+          50% {
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.8), 0 0 40px rgba(59, 130, 246, 0.3);
           }
         }
       `}</style>
