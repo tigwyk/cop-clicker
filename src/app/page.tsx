@@ -2201,7 +2201,17 @@ export default function Home() {
       
       // Test JSON serialization first
       const jsonString = JSON.stringify(saveData);
-      const exportString = btoa(jsonString);
+      
+      // Use TextEncoder for proper Unicode handling instead of btoa
+      const encoder = new TextEncoder();
+      const uint8Array = encoder.encode(jsonString);
+      
+      // Convert to base64 using a safer method
+      let binary = '';
+      uint8Array.forEach(byte => {
+        binary += String.fromCharCode(byte);
+      });
+      const exportString = btoa(binary);
       
       // Create and trigger download
       const blob = new Blob([exportString], { type: 'text/plain' });
@@ -2229,7 +2239,14 @@ export default function Home() {
     }
     
     try {
-      const decodedData = atob(importData.trim());
+      // Decode using the same method as export
+      const binaryString = atob(importData.trim());
+      const uint8Array = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        uint8Array[i] = binaryString.charCodeAt(i);
+      }
+      const decoder = new TextDecoder();
+      const decodedData = decoder.decode(uint8Array);
       const saveData = JSON.parse(decodedData);
       
       // Validate save data structure
