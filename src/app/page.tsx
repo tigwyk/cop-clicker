@@ -125,6 +125,14 @@ interface GameState {
     sfxVolume: number;
     ambientVolume: number;
   };
+  themeSettings: {
+    theme: 'light' | 'dark' | 'auto';
+    customColors: {
+      primary: string;
+      secondary: string;
+      accent: string;
+    };
+  };
 }
 
 const RANKS = [
@@ -777,6 +785,14 @@ export default function Home() {
       ambientEnabled: true,
       sfxVolume: 0.8,
       ambientVolume: 0.3
+    },
+    themeSettings: {
+      theme: 'dark',
+      customColors: {
+        primary: '#3b82f6',
+        secondary: '#1e40af',
+        accent: '#fbbf24'
+      }
     }
   });
 
@@ -883,6 +899,51 @@ export default function Home() {
       }
     }
   }, [gameState.soundSettings, isLoaded, startAmbientAudio, stopAmbientAudio]);
+
+  // Theme Management
+  const getEffectiveTheme = useCallback(() => {
+    if (gameState.themeSettings.theme === 'auto') {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    return gameState.themeSettings.theme;
+  }, [gameState.themeSettings.theme]);
+
+  const isDarkTheme = getEffectiveTheme() === 'dark';
+
+  // Apply theme to document
+  useEffect(() => {
+    const theme = getEffectiveTheme();
+    const root = document.documentElement;
+    
+    // Set theme class
+    root.className = root.className.replace(/theme-\w+/g, '');
+    root.classList.add(`theme-${theme}`);
+    
+    // Set CSS custom properties for theme colors
+    const colors = gameState.themeSettings.customColors;
+    root.style.setProperty('--color-primary', colors.primary);
+    root.style.setProperty('--color-secondary', colors.secondary);
+    root.style.setProperty('--color-accent', colors.accent);
+    
+    // Set theme-based color variables
+    if (theme === 'dark') {
+      root.style.setProperty('--bg-primary', '#0f172a');
+      root.style.setProperty('--bg-secondary', '#1e293b');
+      root.style.setProperty('--bg-tertiary', '#334155');
+      root.style.setProperty('--text-primary', '#f1f5f9');
+      root.style.setProperty('--text-secondary', '#cbd5e1');
+      root.style.setProperty('--text-muted', '#64748b');
+      root.style.setProperty('--border-color', '#475569');
+    } else {
+      root.style.setProperty('--bg-primary', '#ffffff');
+      root.style.setProperty('--bg-secondary', '#f8fafc');
+      root.style.setProperty('--bg-tertiary', '#e2e8f0');
+      root.style.setProperty('--text-primary', '#0f172a');
+      root.style.setProperty('--text-secondary', '#334155');
+      root.style.setProperty('--text-muted', '#64748b');
+      root.style.setProperty('--border-color', '#cbd5e1');
+    }
+  }, [gameState.themeSettings, getEffectiveTheme]);
 
   useEffect(() => {
     const savedGame = localStorage.getItem('cop-clicker-save');
@@ -1000,6 +1061,18 @@ export default function Home() {
             ambientEnabled: true,
             sfxVolume: 0.8,
             ambientVolume: 0.3
+          };
+        }
+        
+        // Handle theme settings for backward compatibility
+        if (!loadedState.themeSettings) {
+          loadedState.themeSettings = {
+            theme: 'dark',
+            customColors: {
+              primary: '#3b82f6',
+              secondary: '#1e40af',
+              accent: '#fbbf24'
+            }
           };
         }
         
@@ -1716,7 +1789,8 @@ export default function Home() {
         activeEffects: [], // Clear active effects on prestige
         equipment: prev.equipment, // Keep equipment collection
         equippedItems: prev.equippedItems, // Keep equipped items
-        soundSettings: prev.soundSettings // Keep sound settings
+        soundSettings: prev.soundSettings, // Keep sound settings
+        themeSettings: prev.themeSettings // Keep theme settings
       }));
     }
   };
@@ -1926,6 +2000,14 @@ export default function Home() {
           ambientEnabled: true,
           sfxVolume: 0.8,
           ambientVolume: 0.3
+        },
+        themeSettings: {
+          theme: 'dark',
+          customColors: {
+            primary: '#3b82f6',
+            secondary: '#1e40af',
+            accent: '#fbbf24'
+          }
         }
       });
     }
@@ -2076,18 +2158,24 @@ export default function Home() {
 
   if (!isLoaded) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-blue-700 text-white flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center transition-colors duration-300" style={{
+        background: 'linear-gradient(to bottom right, var(--bg-secondary), var(--bg-tertiary))',
+        color: 'var(--text-primary)'
+      }}>
         <div className="text-2xl font-bold">Loading...</div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-blue-700 text-white">
+    <div className="min-h-screen transition-colors duration-300" style={{
+      background: 'linear-gradient(to bottom right, var(--bg-primary), var(--bg-secondary))',
+      color: 'var(--text-primary)'
+    }}>
       <div className="container mx-auto px-4 py-8">
         <header className="text-center mb-8">
-          <h1 className="text-4xl font-bold mb-2">Cop Clicker</h1>
-          <p className="text-blue-200">Rise Through the Ranks</p>
+          <h1 className="text-4xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Cop Clicker</h1>
+          <p style={{ color: 'var(--text-secondary)' }}>Rise Through the Ranks</p>
         </header>
 
         {/* Achievement Notifications */}
@@ -2914,6 +3002,109 @@ export default function Home() {
                   </div>
                 </div>
                 
+                {/* Theme Settings */}
+                <div className="space-y-3">
+                  <h4 className="text-sm font-bold text-gray-200">🎨 Theme Settings</h4>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs text-gray-300">Theme Mode</label>
+                      <select
+                        value={gameState.themeSettings.theme}
+                        onChange={(e) => setGameState(prev => ({
+                          ...prev,
+                          themeSettings: {
+                            ...prev.themeSettings,
+                            theme: e.target.value as 'light' | 'dark' | 'auto'
+                          }
+                        }))}
+                        className="bg-gray-700 text-white text-xs px-2 py-1 rounded border border-gray-600 focus:border-blue-500 focus:outline-none"
+                      >
+                        <option value="dark">Dark</option>
+                        <option value="light">Light</option>
+                        <option value="auto">Auto</option>
+                      </select>
+                    </div>
+                    
+                    <div className="grid grid-cols-3 gap-1 text-xs">
+                      <div className="space-y-1">
+                        <label className="text-gray-400">Primary</label>
+                        <input
+                          type="color"
+                          value={gameState.themeSettings.customColors.primary}
+                          onChange={(e) => setGameState(prev => ({
+                            ...prev,
+                            themeSettings: {
+                              ...prev.themeSettings,
+                              customColors: {
+                                ...prev.themeSettings.customColors,
+                                primary: e.target.value
+                              }
+                            }
+                          }))}
+                          className="w-full h-6 rounded border border-gray-600 cursor-pointer"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-gray-400">Secondary</label>
+                        <input
+                          type="color"
+                          value={gameState.themeSettings.customColors.secondary}
+                          onChange={(e) => setGameState(prev => ({
+                            ...prev,
+                            themeSettings: {
+                              ...prev.themeSettings,
+                              customColors: {
+                                ...prev.themeSettings.customColors,
+                                secondary: e.target.value
+                              }
+                            }
+                          }))}
+                          className="w-full h-6 rounded border border-gray-600 cursor-pointer"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-gray-400">Accent</label>
+                        <input
+                          type="color"
+                          value={gameState.themeSettings.customColors.accent}
+                          onChange={(e) => setGameState(prev => ({
+                            ...prev,
+                            themeSettings: {
+                              ...prev.themeSettings,
+                              customColors: {
+                                ...prev.themeSettings.customColors,
+                                accent: e.target.value
+                              }
+                            }
+                          }))}
+                          className="w-full h-6 rounded border border-gray-600 cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs text-gray-300">Reset Theme</label>
+                      <button
+                        onClick={() => setGameState(prev => ({
+                          ...prev,
+                          themeSettings: {
+                            theme: 'dark',
+                            customColors: {
+                              primary: '#3b82f6',
+                              secondary: '#1e40af',
+                              accent: '#fbbf24'
+                            }
+                          }
+                        }))}
+                        className="px-2 py-1 rounded text-xs font-semibold bg-gray-600 hover:bg-gray-500 text-white transition-colors"
+                      >
+                        Reset
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                
                 <button
                   onClick={saveGame}
                   className="w-full p-2 bg-green-600 hover:bg-green-500 rounded text-sm font-semibold transition-colors"
@@ -3226,6 +3417,49 @@ export default function Home() {
           50% {
             box-shadow: 0 0 30px rgba(59, 130, 246, 0.8), 0 0 40px rgba(59, 130, 246, 0.3);
           }
+        }
+        
+        /* Theme transition styles */
+        * {
+          transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+        }
+        
+        /* Custom scrollbar for dark theme */
+        .theme-dark ::-webkit-scrollbar {
+          width: 8px;
+          height: 8px;
+        }
+        
+        .theme-dark ::-webkit-scrollbar-track {
+          background: var(--bg-secondary);
+        }
+        
+        .theme-dark ::-webkit-scrollbar-thumb {
+          background: var(--border-color);
+          border-radius: 4px;
+        }
+        
+        .theme-dark ::-webkit-scrollbar-thumb:hover {
+          background: var(--text-muted);
+        }
+        
+        /* Custom scrollbar for light theme */
+        .theme-light ::-webkit-scrollbar {
+          width: 8px;
+          height: 8px;
+        }
+        
+        .theme-light ::-webkit-scrollbar-track {
+          background: var(--bg-tertiary);
+        }
+        
+        .theme-light ::-webkit-scrollbar-thumb {
+          background: var(--border-color);
+          border-radius: 4px;
+        }
+        
+        .theme-light ::-webkit-scrollbar-thumb:hover {
+          background: var(--text-muted);
         }
       `}</style>
     </div>
