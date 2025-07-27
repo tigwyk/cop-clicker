@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Decimal from "break_eternity.js";
 
 interface Achievement {
@@ -19,6 +19,41 @@ interface Achievement {
   };
   unlocked: boolean;
   claimed: boolean;
+}
+
+interface CaseFile {
+  id: string;
+  title: string;
+  description: string;
+  difficulty: 'easy' | 'medium' | 'hard' | 'expert';
+  type: 'multiple_choice' | 'sequence' | 'evidence';
+  question: string;
+  options?: string[];
+  correctAnswer: number | string | number[];
+  explanation: string;
+  rewards: {
+    rp: Decimal;
+    experience?: number;
+  };
+  unlockRank: string;
+  completed: boolean;
+  timeLimit?: number; // in seconds
+}
+
+interface RandomEvent {
+  id: string;
+  title: string;
+  description: string;
+  type: 'crime_wave' | 'commendation' | 'equipment_found' | 'training_opportunity' | 'budget_cut' | 'overtime';
+  effect: {
+    type: 'rp_bonus' | 'click_multiplier' | 'passive_multiplier' | 'upgrade_discount' | 'rp_penalty' | 'upgrade_cost_increase';
+    amount: number;
+    duration: number; // in seconds
+  };
+  probability: number; // 0-1
+  minRank?: string;
+  isActive: boolean;
+  startTime?: number;
 }
 
 interface GameState {
@@ -45,6 +80,14 @@ interface GameState {
     equipment: Decimal;  // Unlock upgrades earlier
   };
   achievements: Achievement[];
+  caseFiles: CaseFile[];
+  randomEvents: RandomEvent[];
+  activeEffects: {
+    clickMultiplier: number;
+    passiveMultiplier: number;
+    upgradeDiscount: number;
+    endTime: number;
+  }[];
 }
 
 const RANKS = [
@@ -54,6 +97,264 @@ const RANKS = [
   { name: "Lieutenant", requirement: new Decimal(2000) },
   { name: "Captain", requirement: new Decimal(10000) },
   { name: "Chief", requirement: new Decimal(50000) }
+];
+
+const INITIAL_CASE_FILES: CaseFile[] = [
+  // Beat Cop Cases
+  {
+    id: 'traffic_stop',
+    title: 'Traffic Stop Protocol',
+    description: 'A routine traffic stop requires proper procedure',
+    difficulty: 'easy',
+    type: 'multiple_choice',
+    question: 'During a traffic stop, what should you do first?',
+    options: [
+      'Ask for license and registration immediately',
+      'Call for backup',
+      'Observe the vehicle and occupants for safety',
+      'Start writing the ticket'
+    ],
+    correctAnswer: 2,
+    explanation: 'Safety first! Always observe the vehicle and occupants to assess potential threats before proceeding.',
+    rewards: { rp: new Decimal(50) },
+    unlockRank: 'Beat Cop',
+    completed: false,
+    timeLimit: 30
+  },
+  {
+    id: 'noise_complaint',
+    title: 'Noise Complaint Investigation',
+    description: 'Residents are complaining about loud music',
+    difficulty: 'easy',
+    type: 'sequence',
+    question: 'Put these steps in the correct order for handling a noise complaint:',
+    options: [
+      'Document the incident',
+      'Knock on the door and identify yourself',
+      'Listen for the noise yourself',
+      'Speak with the complainant'
+    ],
+    correctAnswer: [3, 2, 1, 0],
+    explanation: 'Proper procedure: Speak with complainant → Listen for noise → Knock and identify → Document',
+    rewards: { rp: new Decimal(75) },
+    unlockRank: 'Beat Cop',
+    completed: false
+  },
+  
+  // Detective Cases
+  {
+    id: 'burglary_scene',
+    title: 'Burglary Scene Analysis',
+    description: 'A home has been burglarized, examine the evidence',
+    difficulty: 'medium',
+    type: 'evidence',
+    question: 'Which piece of evidence should be prioritized for collection?',
+    options: [
+      'Fingerprints on the broken window',
+      'Muddy footprints leading to the backyard',
+      'Witnesses saw a suspicious van',
+      'Missing jewelry from the bedroom'
+    ],
+    correctAnswer: 0,
+    explanation: 'Fingerprints provide the most direct physical evidence linking a suspect to the crime scene.',
+    rewards: { rp: new Decimal(200), experience: 10 },
+    unlockRank: 'Detective',
+    completed: false,
+    timeLimit: 60
+  },
+  {
+    id: 'fraud_investigation',
+    title: 'Credit Card Fraud Case',
+    description: 'Multiple fraudulent charges on stolen credit cards',
+    difficulty: 'medium',
+    type: 'multiple_choice',
+    question: 'What pattern suggests this is an organized fraud ring?',
+    options: [
+      'Random small purchases at different stores',
+      'Large purchases at electronics stores within 2 hours',
+      'Online purchases from home',
+      'ATM withdrawals in the same neighborhood'
+    ],
+    correctAnswer: 1,
+    explanation: 'Organized rings typically make large, quick purchases at high-value stores to maximize profit before cards are reported stolen.',
+    rewards: { rp: new Decimal(300), experience: 15 },
+    unlockRank: 'Detective',
+    completed: false
+  },
+  
+  // Sergeant Cases
+  {
+    id: 'drug_bust',
+    title: 'Coordinated Drug Operation',
+    description: 'Plan and execute a multi-location drug bust',
+    difficulty: 'hard',
+    type: 'sequence',
+    question: 'Plan the operation timeline for maximum effectiveness:',
+    options: [
+      'Execute all warrants simultaneously',
+      'Set up surveillance teams',
+      'Brief all units on their roles',
+      'Coordinate with district attorney'
+    ],
+    correctAnswer: [3, 1, 2, 0],
+    explanation: 'Proper planning: DA coordination → Surveillance → Brief units → Execute simultaneously to prevent evidence destruction.',
+    rewards: { rp: new Decimal(500), experience: 25 },
+    unlockRank: 'Sergeant',
+    completed: false,
+    timeLimit: 90
+  },
+  
+  // Lieutenant Cases
+  {
+    id: 'officer_misconduct',
+    title: 'Internal Affairs Investigation',
+    description: 'Handle allegations of officer misconduct properly',
+    difficulty: 'hard',
+    type: 'multiple_choice',
+    question: 'What is the most critical first step in an IA investigation?',
+    options: [
+      'Interview the accused officer immediately',
+      'Secure all relevant evidence and documentation',
+      'Notify the police union',
+      'Interview witnesses'
+    ],
+    correctAnswer: 1,
+    explanation: 'Evidence preservation is crucial as it can be destroyed or tampered with if not secured immediately.',
+    rewards: { rp: new Decimal(750), experience: 30 },
+    unlockRank: 'Lieutenant',
+    completed: false
+  },
+  
+  // Captain Cases
+  {
+    id: 'budget_crisis',
+    title: 'Department Budget Management',
+    description: 'Allocate limited resources during budget cuts',
+    difficulty: 'expert',
+    type: 'multiple_choice',
+    question: 'Which area should maintain funding priority during budget cuts?',
+    options: [
+      'Administrative staff',
+      'Equipment upgrades',
+      'Officer training programs',
+      'Facility maintenance'
+    ],
+    correctAnswer: 2,
+    explanation: 'Officer training directly impacts public safety and effectiveness, making it the top priority during cuts.',
+    rewards: { rp: new Decimal(1000), experience: 40 },
+    unlockRank: 'Captain',
+    completed: false,
+    timeLimit: 120
+  },
+  
+  // Chief Cases
+  {
+    id: 'public_relations',
+    title: 'Crisis Communication',
+    description: 'Handle media during a controversial incident',
+    difficulty: 'expert',
+    type: 'sequence',
+    question: 'Order these crisis communication steps:',
+    options: [
+      'Hold public press conference',
+      'Gather all facts from the incident',
+      'Prepare official statement',
+      'Brief department leadership'
+    ],
+    correctAnswer: [1, 3, 2, 0],
+    explanation: 'Crisis management: Gather facts → Brief leadership → Prepare statement → Public conference',
+    rewards: { rp: new Decimal(1500), experience: 50 },
+    unlockRank: 'Chief',
+    completed: false
+  }
+];
+
+const RANDOM_EVENTS: RandomEvent[] = [
+  // Positive Events
+  {
+    id: 'commendation',
+    title: '🏆 Commendation Received',
+    description: 'Your excellent work has been recognized by the community!',
+    type: 'commendation',
+    effect: {
+      type: 'rp_bonus',
+      amount: 1.5,
+      duration: 300 // 5 minutes
+    },
+    probability: 0.15,
+    isActive: false
+  },
+  {
+    id: 'equipment_found',
+    title: '🔧 Equipment Cache Discovered',
+    description: 'You found some abandoned but useful equipment!',
+    type: 'equipment_found',
+    effect: {
+      type: 'click_multiplier',
+      amount: 2.0,
+      duration: 180 // 3 minutes
+    },
+    probability: 0.1,
+    minRank: 'Detective',
+    isActive: false
+  },
+  {
+    id: 'training_opportunity',
+    title: '📚 Training Seminar Available',
+    description: 'Free advanced training improves your effectiveness!',
+    type: 'training_opportunity',
+    effect: {
+      type: 'passive_multiplier',
+      amount: 1.8,
+      duration: 600 // 10 minutes
+    },
+    probability: 0.08,
+    minRank: 'Sergeant',
+    isActive: false
+  },
+  {
+    id: 'overtime',
+    title: '⏰ Overtime Shift',
+    description: 'Extra shift means extra pay and experience!',
+    type: 'overtime',
+    effect: {
+      type: 'rp_bonus',
+      amount: 2.0,
+      duration: 240 // 4 minutes
+    },
+    probability: 0.12,
+    isActive: false
+  },
+  
+  // Negative Events
+  {
+    id: 'crime_wave',
+    title: '🚨 Crime Wave Emergency',
+    description: 'Increased criminal activity strains resources.',
+    type: 'crime_wave',
+    effect: {
+      type: 'upgrade_cost_increase',
+      amount: 1.3,
+      duration: 420 // 7 minutes
+    },
+    probability: 0.1,
+    minRank: 'Detective',
+    isActive: false
+  },
+  {
+    id: 'budget_cut',
+    title: '💰 Budget Cuts',
+    description: 'City budget cuts affect department operations.',
+    type: 'budget_cut',
+    effect: {
+      type: 'passive_multiplier',
+      amount: 0.7,
+      duration: 480 // 8 minutes
+    },
+    probability: 0.08,
+    minRank: 'Lieutenant',
+    isActive: false
+  }
 ];
 
 const INITIAL_ACHIEVEMENTS: Achievement[] = [
@@ -202,13 +503,23 @@ export default function Home() {
       wisdom: new Decimal(0),
       equipment: new Decimal(0)
     },
-    achievements: [...INITIAL_ACHIEVEMENTS]
+    achievements: [...INITIAL_ACHIEVEMENTS],
+    caseFiles: [...INITIAL_CASE_FILES],
+    randomEvents: [...RANDOM_EVENTS],
+    activeEffects: []
   });
 
   const [clickAnimations, setClickAnimations] = useState<Array<{id: number, x: number, y: number}>>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [purchaseQuantity, setPurchaseQuantity] = useState<number | 'max'>(1);
   const [achievementNotifications, setAchievementNotifications] = useState<Achievement[]>([]);
+  const [currentCase, setCurrentCase] = useState<CaseFile | null>(null);
+  const [showCaseModal, setShowCaseModal] = useState(false);
+  const [caseTimeLeft, setCaseTimeLeft] = useState(0);
+  const [userAnswer, setUserAnswer] = useState<number | number[]>(0);
+  const [caseResult, setCaseResult] = useState<{success: boolean, explanation: string} | null>(null);
+  const [eventNotifications, setEventNotifications] = useState<RandomEvent[]>([]);
+  const [sequenceAnswer, setSequenceAnswer] = useState<number[]>([]);
 
   useEffect(() => {
     const savedGame = localStorage.getItem('cop-clicker-save');
@@ -218,7 +529,7 @@ export default function Home() {
         const loadedState = JSON.parse(savedGame);
         
         // Convert loaded numbers to Decimals
-        const convertToDecimal = (value: any) => new Decimal(value || 0);
+        const convertToDecimal = (value: unknown) => new Decimal(value as Decimal || 0);
         
         // Ensure all required properties exist and convert to Decimal
         if (!loadedState.upgrades) {
@@ -270,6 +581,26 @@ export default function Home() {
           const loadedAchievementIds = loadedState.achievements.map((a: Achievement) => a.id);
           const newAchievements = INITIAL_ACHIEVEMENTS.filter(a => !loadedAchievementIds.includes(a.id));
           loadedState.achievements = [...loadedState.achievements, ...newAchievements];
+        }
+        
+        // Handle case files for backward compatibility
+        if (!loadedState.caseFiles) {
+          loadedState.caseFiles = [...INITIAL_CASE_FILES];
+        } else {
+          // Merge with new cases while preserving progress
+          const loadedCaseIds = loadedState.caseFiles.map((c: CaseFile) => c.id);
+          const newCases = INITIAL_CASE_FILES.filter(c => !loadedCaseIds.includes(c.id));
+          loadedState.caseFiles = [...loadedState.caseFiles, ...newCases];
+        }
+        
+        // Handle random events for backward compatibility
+        if (!loadedState.randomEvents) {
+          loadedState.randomEvents = [...RANDOM_EVENTS];
+        }
+        
+        // Handle active effects for backward compatibility
+        if (!loadedState.activeEffects) {
+          loadedState.activeEffects = [];
         }
         
         if (!loadedState.rank) {
@@ -380,19 +711,42 @@ export default function Home() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [gameState, isLoaded]);
 
+  // Active effects helper function - defined early to be used in other hooks
+  const getActiveMultipliers = useCallback(() => {
+    const now = Date.now();
+    const activeEffects = gameState.activeEffects.filter(effect => effect.endTime > now);
+    
+    // Update active effects if any expired
+    if (activeEffects.length !== gameState.activeEffects.length) {
+      setGameState(prev => ({
+        ...prev,
+        activeEffects: activeEffects
+      }));
+    }
+
+    return {
+      clickMultiplier: activeEffects.reduce((acc, effect) => acc * effect.clickMultiplier, 1),
+      passiveMultiplier: activeEffects.reduce((acc, effect) => acc * effect.passiveMultiplier, 1),
+      upgradeDiscount: activeEffects.reduce((acc, effect) => acc * effect.upgradeDiscount, 1)
+    };
+  }, [gameState.activeEffects, setGameState]);
+
   useEffect(() => {
     if (isLoaded && gameState.passiveIncome.gt(0)) {
       const passiveTimer = setInterval(() => {
+        const multipliers = getActiveMultipliers();
+        const finalPassiveIncome = gameState.passiveIncome.mul(multipliers.passiveMultiplier);
+        
         setGameState(prev => ({
           ...prev,
-          respectPoints: prev.respectPoints.add(prev.passiveIncome),
-          totalRP: prev.totalRP.add(prev.passiveIncome)
+          respectPoints: prev.respectPoints.add(finalPassiveIncome),
+          totalRP: prev.totalRP.add(finalPassiveIncome)
         }));
       }, 1000);
 
       return () => clearInterval(passiveTimer);
     }
-  }, [gameState.passiveIncome, isLoaded]);
+  }, [gameState.passiveIncome, isLoaded, getActiveMultipliers]);
 
   // Track play time
   useEffect(() => {
@@ -408,11 +762,145 @@ export default function Home() {
     }
   }, [isLoaded]);
 
-  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+  // Case-solving functions
+  const getAvailableCases = (): CaseFile[] => {
+    return gameState.caseFiles.filter(caseFile => {
+      const rankIndex = RANKS.findIndex(rank => rank.name === gameState.rank);
+      const caseRankIndex = RANKS.findIndex(rank => rank.name === caseFile.unlockRank);
+      return caseRankIndex <= rankIndex && !caseFile.completed;
+    });
+  };
+
+  const startCase = (caseFile: CaseFile) => {
+    setCurrentCase(caseFile);
+    setShowCaseModal(true);
+    setCaseTimeLeft(caseFile.timeLimit || 60);
+    setUserAnswer(0);
+    setSequenceAnswer([]);
+    setCaseResult(null);
+  };
+
+  const submitCaseAnswer = () => {
+    if (!currentCase) return;
+
+    let isCorrect = false;
+    
+    if (currentCase.type === 'multiple_choice' || currentCase.type === 'evidence') {
+      isCorrect = userAnswer === currentCase.correctAnswer;
+    } else if (currentCase.type === 'sequence') {
+      const correctSequence = currentCase.correctAnswer as number[];
+      isCorrect = JSON.stringify(sequenceAnswer) === JSON.stringify(correctSequence);
+    }
+
+    setCaseResult({
+      success: isCorrect,
+      explanation: currentCase.explanation
+    });
+
+    if (isCorrect) {
+      // Mark case as completed and give rewards
+      setGameState(prev => {
+        const updatedCases = prev.caseFiles.map(c => 
+          c.id === currentCase.id ? { ...c, completed: true } : c
+        );
+        return {
+          ...prev,
+          caseFiles: updatedCases,
+          respectPoints: prev.respectPoints.add(currentCase.rewards.rp),
+          totalRP: prev.totalRP.add(currentCase.rewards.rp)
+        };
+      });
+    }
+
+    // Close modal after showing result
+    setTimeout(() => {
+      setShowCaseModal(false);
+      setCurrentCase(null);
+      setCaseResult(null);
+    }, 3000);
+  };
+
+  // Random event functions
+  const triggerRandomEvent = useCallback(() => {
+    if (Math.random() < 0.02) { // 2% chance per second
+      const availableEvents = RANDOM_EVENTS.filter(event => {
+        if (event.minRank) {
+          const rankIndex = RANKS.findIndex(rank => rank.name === gameState.rank);
+          const eventRankIndex = RANKS.findIndex(rank => rank.name === event.minRank);
+          return rankIndex >= eventRankIndex;
+        }
+        return true;
+      });
+
+      if (availableEvents.length > 0) {
+        const randomEvent = availableEvents[Math.floor(Math.random() * availableEvents.length)];
+        if (Math.random() < randomEvent.probability) {
+          activateEvent(randomEvent);
+        }
+      }
+    }
+  }, [gameState.rank]);
+
+  const activateEvent = (event: RandomEvent) => {
+    const newEffect = {
+      clickMultiplier: event.effect.type === 'click_multiplier' ? event.effect.amount : 1,
+      passiveMultiplier: event.effect.type === 'passive_multiplier' ? event.effect.amount : 1,
+      upgradeDiscount: event.effect.type === 'upgrade_discount' ? event.effect.amount : 1,
+      endTime: Date.now() + (event.effect.duration * 1000)
+    };
+
     setGameState(prev => ({
       ...prev,
-      respectPoints: prev.respectPoints.add(prev.clickValue),
-      totalRP: prev.totalRP.add(prev.clickValue)
+      activeEffects: [...prev.activeEffects, newEffect]
+    }));
+
+    setEventNotifications(prev => [...prev, event]);
+
+    // Remove notification after 5 seconds
+    setTimeout(() => {
+      setEventNotifications(prev => prev.filter(e => e.id !== event.id));
+    }, 5000);
+  };
+
+  // Case timer effect
+  useEffect(() => {
+    if (showCaseModal && caseTimeLeft > 0) {
+      const timer = setTimeout(() => {
+        setCaseTimeLeft(caseTimeLeft - 1);
+      }, 1000);
+      return () => clearTimeout(timer);
+    } else if (showCaseModal && caseTimeLeft === 0) {
+      // Time's up - show failure
+      setCaseResult({
+        success: false,
+        explanation: "Time's up! " + (currentCase?.explanation || "")
+      });
+      setTimeout(() => {
+        setShowCaseModal(false);
+        setCurrentCase(null);
+        setCaseResult(null);
+      }, 3000);
+    }
+  }, [showCaseModal, caseTimeLeft, currentCase]);
+
+  // Random event trigger
+  useEffect(() => {
+    if (isLoaded) {
+      const eventTimer = setInterval(() => {
+        triggerRandomEvent();
+      }, 1000);
+      return () => clearInterval(eventTimer);
+    }
+  }, [isLoaded, triggerRandomEvent]);
+
+  const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
+    const multipliers = getActiveMultipliers();
+    const finalClickValue = gameState.clickValue.mul(multipliers.clickMultiplier);
+    
+    setGameState(prev => ({
+      ...prev,
+      respectPoints: prev.respectPoints.add(finalClickValue),
+      totalRP: prev.totalRP.add(finalClickValue)
     }));
 
     const rect = event.currentTarget.getBoundingClientRect();
@@ -592,14 +1080,12 @@ export default function Home() {
     return Decimal.max(new Decimal(0.1), new Decimal(1).sub(reduction));
   };
 
-  const getRankRequirementReduction = (): Decimal => {
+  const getRankRequirementReduction = useCallback((): Decimal => {
     if (!gameState?.legacyUpgrades) return new Decimal(1);
     // -10% rank requirements per equipment level, minimum 10% requirements
-    const reductionPerLevel = new Decimal(0.1);
-    const totalReduction = gameState.legacyUpgrades.equipment.mul(reductionPerLevel);
     const multiplier = Decimal.pow(new Decimal(0.9), gameState.legacyUpgrades.equipment);
     return Decimal.max(new Decimal(0.1), multiplier);
-  };
+  }, [gameState?.legacyUpgrades]);
 
   const calculatePrestigeGain = (): Decimal => {
     if (!gameState?.totalRP) return new Decimal(0);
@@ -639,7 +1125,10 @@ export default function Home() {
           automation: new Decimal(0)
         },
         legacyUpgrades: prev.legacyUpgrades, // Keep legacy upgrades
-        achievements: prev.achievements // Keep achievements
+        achievements: prev.achievements, // Keep achievements
+        caseFiles: prev.caseFiles, // Keep case progress
+        randomEvents: prev.randomEvents, // Keep events
+        activeEffects: [] // Clear active effects on prestige
       }));
     }
   };
@@ -741,11 +1230,17 @@ export default function Home() {
       // Apply rewards
       switch (achievement.reward.type) {
         case 'rp':
-          updatedState.respectPoints = updatedState.respectPoints.add(achievement.reward.amount);
-          updatedState.totalRP = updatedState.totalRP.add(achievement.reward.amount);
+          updatedState = {
+            ...updatedState,
+            respectPoints: updatedState.respectPoints.add(achievement.reward.amount),
+            totalRP: updatedState.totalRP.add(achievement.reward.amount)
+          };
           break;
         case 'legacy_points':
-          updatedState.legacyPoints = updatedState.legacyPoints.add(achievement.reward.amount);
+          updatedState = {
+            ...updatedState,
+            legacyPoints: updatedState.legacyPoints.add(achievement.reward.amount)
+          };
           break;
       }
       
@@ -821,7 +1316,10 @@ export default function Home() {
           wisdom: new Decimal(0),
           equipment: new Decimal(0)
         },
-        achievements: [...INITIAL_ACHIEVEMENTS]
+        achievements: [...INITIAL_ACHIEVEMENTS],
+        caseFiles: [...INITIAL_CASE_FILES],
+        randomEvents: [...RANDOM_EVENTS],
+        activeEffects: []
       });
     }
   };
@@ -894,7 +1392,7 @@ export default function Home() {
     return gameState.respectPoints.gte(cost);
   };
 
-  const updateRank = () => {
+  const updateRank = useCallback(() => {
     if (!gameState?.rank) return;
     const currentRankIndex = RANKS.findIndex(rank => rank.name === gameState.rank);
     const nextRankIndex = currentRankIndex + 1;
@@ -932,7 +1430,7 @@ export default function Home() {
         return newState;
       });
     }
-  };
+  }, [gameState, getRankRequirementReduction, setGameState]);
 
   const getCurrentRankInfo = () => {
     if (!gameState?.rank) return { current: RANKS[0], next: RANKS[1], progress: 0, adjustedRequirement: new Decimal(0) };
@@ -958,7 +1456,7 @@ export default function Home() {
     if (isLoaded) {
       updateRank();
     }
-  }, [gameState.respectPoints, isLoaded]);
+  }, [gameState.respectPoints, isLoaded, updateRank]);
 
   // Memoize expensive calculations
   const rankMultiplier = getRankMultiplier();
@@ -981,6 +1479,24 @@ export default function Home() {
 
         {/* Achievement Notifications */}
         <div className="fixed top-4 right-4 z-50 space-y-2">
+          {/* Event Notifications */}
+          {eventNotifications.map((event) => (
+            <div
+              key={event.id}
+              className={`border rounded-lg p-4 shadow-lg animate-pulse max-w-sm ${
+                event.type === 'commendation' || event.type === 'equipment_found' || event.type === 'training_opportunity' || event.type === 'overtime'
+                  ? 'bg-green-600 border-green-400' 
+                  : 'bg-red-600 border-red-400'
+              }`}
+            >
+              <div className="font-bold text-sm">{event.title}</div>
+              <div className="text-xs text-white">{event.description}</div>
+              <div className="text-xs text-gray-200 mt-1">
+                Duration: {Math.floor(event.effect.duration / 60)}m {event.effect.duration % 60}s
+              </div>
+            </div>
+          ))}
+          
           {achievementNotifications.map((achievement) => (
             <div
               key={achievement.id}
@@ -1036,6 +1552,17 @@ export default function Home() {
                       Legacy Bonus: +{getLegacyMultiplier().sub(1).mul(100).toFixed(0)}%
                     </div>
                   )}
+                  {(() => {
+                    const multipliers = getActiveMultipliers();
+                    const hasActiveEffects = multipliers.clickMultiplier > 1 || multipliers.passiveMultiplier !== 1;
+                    return hasActiveEffects ? (
+                      <div className="text-sm text-orange-300">
+                        Active Effects: 
+                        {multipliers.clickMultiplier > 1 && ` Click ×${multipliers.clickMultiplier.toFixed(1)}`}
+                        {multipliers.passiveMultiplier !== 1 && ` Passive ×${multipliers.passiveMultiplier.toFixed(1)}`}
+                      </div>
+                    ) : null;
+                  })()}
                 </div>
                 
                 {(() => {
@@ -1506,6 +2033,54 @@ export default function Home() {
               </div>
             </div>
 
+            <div className="bg-orange-800/50 rounded-lg p-6 backdrop-blur-sm border border-orange-600/30 mb-6">
+              <h3 className="text-xl font-bold mb-4">📋 Case Files</h3>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {getAvailableCases().length > 0 ? (
+                  getAvailableCases().map(caseFile => (
+                    <div
+                      key={caseFile.id}
+                      className="p-2 rounded border border-orange-500/30 bg-orange-700/50"
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="font-semibold text-sm flex items-center">
+                            📁 {caseFile.title}
+                            <span className={`ml-2 px-1 text-xs rounded ${
+                              caseFile.difficulty === 'easy' ? 'bg-green-600' :
+                              caseFile.difficulty === 'medium' ? 'bg-yellow-600' :
+                              caseFile.difficulty === 'hard' ? 'bg-red-600' : 'bg-purple-600'
+                            }`}>
+                              {caseFile.difficulty.toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="text-xs text-orange-200">{caseFile.description}</div>
+                          <div className="text-xs text-green-300">
+                            Reward: {formatNumber(caseFile.rewards.rp)} RP
+                            {caseFile.timeLimit && ` • Time: ${caseFile.timeLimit}s`}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => startCase(caseFile)}
+                          className="ml-2 bg-orange-600 hover:bg-orange-500 text-white px-2 py-1 rounded text-xs font-semibold"
+                        >
+                          Investigate
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center text-orange-300 text-sm py-4">
+                    No cases available at your current rank. Complete more cases or advance your rank!
+                  </div>
+                )}
+                
+                <div className="text-center text-xs text-orange-400 mt-4">
+                  {gameState.caseFiles.filter(c => c.completed).length} / {gameState.caseFiles.length} cases solved
+                </div>
+              </div>
+            </div>
+
             <div className="bg-blue-800/50 rounded-lg p-6 backdrop-blur-sm border border-blue-600/30">
               <h3 className="text-xl font-bold mb-4">Statistics</h3>
               <div className="space-y-2 text-sm">
@@ -1599,6 +2174,109 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      {/* Case Modal */}
+      {showCaseModal && currentCase && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-blue-900 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-blue-600">
+            {!caseResult ? (
+              <>
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-xl font-bold text-white">{currentCase.title}</h2>
+                  <div className="text-yellow-300 font-bold">
+                    ⏱️ {caseTimeLeft}s
+                  </div>
+                </div>
+                
+                <div className="text-blue-200 mb-4">{currentCase.description}</div>
+                <div className="text-white mb-6">{currentCase.question}</div>
+                
+                {currentCase.type === 'multiple_choice' || currentCase.type === 'evidence' ? (
+                  <div className="space-y-2 mb-6">
+                    {currentCase.options?.map((option, index) => (
+                      <button
+                        key={index}
+                        onClick={() => setUserAnswer(index)}
+                        className={`w-full text-left p-3 rounded border transition-colors ${
+                          userAnswer === index
+                            ? 'bg-blue-600 border-blue-400'
+                            : 'bg-blue-800/50 border-blue-600/50 hover:bg-blue-700/50'
+                        }`}
+                      >
+                        {String.fromCharCode(65 + index)}. {option}
+                      </button>
+                    ))}
+                  </div>
+                ) : currentCase.type === 'sequence' && (
+                  <div className="mb-6">
+                    <div className="text-sm text-blue-300 mb-2">Click options in the correct order:</div>
+                    <div className="grid grid-cols-1 gap-2 mb-4">
+                      {currentCase.options?.map((option, index) => (
+                        <button
+                          key={index}
+                          onClick={() => {
+                            if (sequenceAnswer.includes(index)) {
+                              setSequenceAnswer(sequenceAnswer.filter(i => i !== index));
+                            } else {
+                              setSequenceAnswer([...sequenceAnswer, index]);
+                            }
+                          }}
+                          className={`text-left p-3 rounded border transition-colors ${
+                            sequenceAnswer.includes(index)
+                              ? 'bg-blue-600 border-blue-400'
+                              : 'bg-blue-800/50 border-blue-600/50 hover:bg-blue-700/50'
+                          }`}
+                        >
+                          {sequenceAnswer.includes(index) && (
+                            <span className="text-yellow-300 font-bold mr-2">
+                              {sequenceAnswer.indexOf(index) + 1}.
+                            </span>
+                          )}
+                          {option}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="text-xs text-blue-300">
+                      Selected order: {sequenceAnswer.map(i => currentCase.options?.[i]).join(' → ')}
+                    </div>
+                  </div>
+                )}
+                
+                <div className="flex justify-between">
+                  <button
+                    onClick={() => {
+                      setShowCaseModal(false);
+                      setCurrentCase(null);
+                    }}
+                    className="px-4 py-2 bg-gray-600 hover:bg-gray-500 rounded text-white"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={submitCaseAnswer}
+                    disabled={currentCase.type === 'sequence' && sequenceAnswer.length !== currentCase.options?.length}
+                    className="px-4 py-2 bg-orange-600 hover:bg-orange-500 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-white font-semibold"
+                  >
+                    Submit Answer
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div className="text-center">
+                <div className={`text-2xl font-bold mb-4 ${caseResult.success ? 'text-green-400' : 'text-red-400'}`}>
+                  {caseResult.success ? '✅ Case Solved!' : '❌ Case Failed!'}
+                </div>
+                <div className="text-white mb-4">{caseResult.explanation}</div>
+                {caseResult.success && (
+                  <div className="text-green-300 font-semibold">
+                    Reward: {formatNumber(currentCase.rewards.rp)} RP
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <style jsx>{`
         @keyframes fadeUpOut {
