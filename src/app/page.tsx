@@ -56,6 +56,34 @@ interface RandomEvent {
   startTime?: number;
 }
 
+interface EquipmentItem {
+  id: string;
+  name: string;
+  description: string;
+  type: 'radio' | 'badge' | 'weapon' | 'vest' | 'vehicle' | 'gadget';
+  rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
+  effects: {
+    clickPower?: number;
+    passiveIncome?: number;
+    upgradeCostReduction?: number;
+    caseSuccessRate?: number;
+    eventChance?: number;
+  };
+  unlockRank: string;
+  icon: string;
+  owned: boolean;
+  equipped: boolean;
+}
+
+interface EquipmentSlots {
+  radio: EquipmentItem | null;
+  badge: EquipmentItem | null;
+  weapon: EquipmentItem | null;
+  vest: EquipmentItem | null;
+  vehicle: EquipmentItem | null;
+  gadget: EquipmentItem | null;
+}
+
 interface GameState {
   respectPoints: Decimal;
   clickValue: Decimal;
@@ -88,6 +116,8 @@ interface GameState {
     upgradeDiscount: number;
     endTime: number;
   }[];
+  equipment: EquipmentItem[];
+  equippedItems: EquipmentSlots;
 }
 
 const RANKS = [
@@ -97,6 +127,224 @@ const RANKS = [
   { name: "Lieutenant", requirement: new Decimal(2000) },
   { name: "Captain", requirement: new Decimal(10000) },
   { name: "Chief", requirement: new Decimal(50000) }
+];
+
+const INITIAL_EQUIPMENT: EquipmentItem[] = [
+  // Radio Equipment
+  {
+    id: 'basic_radio',
+    name: 'Basic Radio',
+    description: 'Standard issue police radio for communication',
+    type: 'radio',
+    rarity: 'common',
+    effects: { clickPower: 2, passiveIncome: 1 },
+    unlockRank: 'Beat Cop',
+    icon: '📻',
+    owned: false,
+    equipped: false
+  },
+  {
+    id: 'digital_radio',
+    name: 'Digital Radio',
+    description: 'Enhanced digital radio with clearer signals',
+    type: 'radio',
+    rarity: 'uncommon',
+    effects: { clickPower: 5, passiveIncome: 3, eventChance: 5 },
+    unlockRank: 'Detective',
+    icon: '📡',
+    owned: false,
+    equipped: false
+  },
+  {
+    id: 'tactical_radio',
+    name: 'Tactical Radio',
+    description: 'Military-grade encrypted radio system',
+    type: 'radio',
+    rarity: 'rare',
+    effects: { clickPower: 12, passiveIncome: 8, eventChance: 10 },
+    unlockRank: 'Sergeant',
+    icon: '🎙️',
+    owned: false,
+    equipped: false
+  },
+
+  // Badge Equipment
+  {
+    id: 'rookie_badge',
+    name: 'Rookie Badge',
+    description: 'Your first badge as a police officer',
+    type: 'badge',
+    rarity: 'common',
+    effects: { clickPower: 1, caseSuccessRate: 5 },
+    unlockRank: 'Beat Cop',
+    icon: '🛡️',
+    owned: true, // Starting equipment
+    equipped: true
+  },
+  {
+    id: 'detective_shield',
+    name: 'Detective Shield',
+    description: 'Distinguished detective identification',
+    type: 'badge',
+    rarity: 'uncommon',
+    effects: { clickPower: 4, caseSuccessRate: 15, passiveIncome: 2 },
+    unlockRank: 'Detective',
+    icon: '🏅',
+    owned: false,
+    equipped: false
+  },
+  {
+    id: 'gold_badge',
+    name: 'Gold Badge',
+    description: 'Prestigious gold badge for senior officers',
+    type: 'badge',
+    rarity: 'epic',
+    effects: { clickPower: 15, caseSuccessRate: 25, passiveIncome: 10 },
+    unlockRank: 'Captain',
+    icon: '🥇',
+    owned: false,
+    equipped: false
+  },
+
+  // Weapon Equipment  
+  {
+    id: 'service_pistol',
+    name: 'Service Pistol',
+    description: 'Standard issue sidearm',
+    type: 'weapon',
+    rarity: 'common',
+    effects: { clickPower: 3 },
+    unlockRank: 'Beat Cop',
+    icon: '🔫',
+    owned: false,
+    equipped: false
+  },
+  {
+    id: 'tactical_rifle',
+    name: 'Tactical Rifle',
+    description: 'High-precision tactical weapon',
+    type: 'weapon',
+    rarity: 'rare',
+    effects: { clickPower: 20, caseSuccessRate: 10 },
+    unlockRank: 'Sergeant',
+    icon: '🎯',
+    owned: false,
+    equipped: false
+  },
+
+  // Vest Equipment
+  {
+    id: 'kevlar_vest',
+    name: 'Kevlar Vest',
+    description: 'Bulletproof protection vest',
+    type: 'vest',
+    rarity: 'uncommon',
+    effects: { passiveIncome: 5, caseSuccessRate: 10 },
+    unlockRank: 'Detective',
+    icon: '🦺',
+    owned: false,
+    equipped: false
+  },
+  {
+    id: 'tactical_vest',
+    name: 'Tactical Vest',
+    description: 'Advanced tactical gear with utility pouches',
+    type: 'vest',
+    rarity: 'rare',
+    effects: { passiveIncome: 12, caseSuccessRate: 20, upgradeCostReduction: 5 },
+    unlockRank: 'Lieutenant',
+    icon: '🛡️',
+    owned: false,
+    equipped: false
+  },
+
+  // Vehicle Equipment
+  {
+    id: 'patrol_car',
+    name: 'Patrol Car',
+    description: 'Standard police patrol vehicle',
+    type: 'vehicle',
+    rarity: 'common',
+    effects: { passiveIncome: 8, clickPower: 4 },
+    unlockRank: 'Beat Cop',
+    icon: '🚔',
+    owned: false,
+    equipped: false
+  },
+  {
+    id: 'suv_cruiser',
+    name: 'SUV Cruiser',
+    description: 'Heavy-duty police SUV',
+    type: 'vehicle',
+    rarity: 'uncommon',
+    effects: { passiveIncome: 18, clickPower: 8, eventChance: 8 },
+    unlockRank: 'Sergeant',
+    icon: '🚙',
+    owned: false,
+    equipped: false
+  },
+  {
+    id: 'helicopter',
+    name: 'Police Helicopter',
+    description: 'Aerial surveillance and response unit',
+    type: 'vehicle',
+    rarity: 'legendary',
+    effects: { passiveIncome: 50, clickPower: 25, caseSuccessRate: 30, eventChance: 20 },
+    unlockRank: 'Chief',
+    icon: '🚁',
+    owned: false,
+    equipped: false
+  },
+
+  // Gadget Equipment
+  {
+    id: 'flashlight',
+    name: 'LED Flashlight',
+    description: 'High-powered LED flashlight',
+    type: 'gadget',
+    rarity: 'common',
+    effects: { caseSuccessRate: 8 },
+    unlockRank: 'Beat Cop',
+    icon: '🔦',
+    owned: false,
+    equipped: false
+  },
+  {
+    id: 'body_camera',
+    name: 'Body Camera',
+    description: 'Records interactions for evidence',
+    type: 'gadget',
+    rarity: 'uncommon',
+    effects: { caseSuccessRate: 15, upgradeCostReduction: 3 },
+    unlockRank: 'Detective',
+    icon: '📹',
+    owned: false,
+    equipped: false
+  },
+  {
+    id: 'forensic_kit',
+    name: 'Forensic Kit',
+    description: 'Advanced evidence collection tools',
+    type: 'gadget',
+    rarity: 'rare',
+    effects: { caseSuccessRate: 35, clickPower: 8 },
+    unlockRank: 'Lieutenant',
+    icon: '🔬',
+    owned: false,
+    equipped: false
+  },
+  {
+    id: 'drone',
+    name: 'Surveillance Drone',
+    description: 'Remote surveillance and reconnaissance',
+    type: 'gadget',
+    rarity: 'epic',
+    effects: { passiveIncome: 20, caseSuccessRate: 25, eventChance: 15 },
+    unlockRank: 'Captain',
+    icon: '🛸',
+    owned: false,
+    equipped: false
+  }
 ];
 
 const INITIAL_CASE_FILES: CaseFile[] = [
@@ -506,10 +754,19 @@ export default function Home() {
     achievements: [...INITIAL_ACHIEVEMENTS],
     caseFiles: [...INITIAL_CASE_FILES],
     randomEvents: [...RANDOM_EVENTS],
-    activeEffects: []
+    activeEffects: [],
+    equipment: [...INITIAL_EQUIPMENT],
+    equippedItems: {
+      radio: null,
+      badge: INITIAL_EQUIPMENT.find(e => e.id === 'rookie_badge') || null,
+      weapon: null,
+      vest: null,
+      vehicle: null,
+      gadget: null
+    }
   });
 
-  const [clickAnimations, setClickAnimations] = useState<Array<{id: number, x: number, y: number}>>([]);
+  const [clickAnimations, setClickAnimations] = useState<Array<{id: number, x: number, y: number, value?: Decimal}>>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [purchaseQuantity, setPurchaseQuantity] = useState<number | 'max'>(1);
   const [achievementNotifications, setAchievementNotifications] = useState<Achievement[]>([]);
@@ -520,6 +777,8 @@ export default function Home() {
   const [caseResult, setCaseResult] = useState<{success: boolean, explanation: string} | null>(null);
   const [eventNotifications, setEventNotifications] = useState<RandomEvent[]>([]);
   const [sequenceAnswer, setSequenceAnswer] = useState<number[]>([]);
+  const [showEquipmentModal, setShowEquipmentModal] = useState(false);
+  const [selectedEquipmentType, setSelectedEquipmentType] = useState<'radio' | 'badge' | 'weapon' | 'vest' | 'vehicle' | 'gadget' | null>(null);
 
   useEffect(() => {
     const savedGame = localStorage.getItem('cop-clicker-save');
@@ -601,6 +860,28 @@ export default function Home() {
         // Handle active effects for backward compatibility
         if (!loadedState.activeEffects) {
           loadedState.activeEffects = [];
+        }
+        
+        // Handle equipment for backward compatibility
+        if (!loadedState.equipment) {
+          loadedState.equipment = [...INITIAL_EQUIPMENT];
+        } else {
+          // Merge with new equipment while preserving ownership
+          const loadedEquipmentIds = loadedState.equipment.map((e: EquipmentItem) => e.id);
+          const newEquipment = INITIAL_EQUIPMENT.filter(e => !loadedEquipmentIds.includes(e.id));
+          loadedState.equipment = [...loadedState.equipment, ...newEquipment];
+        }
+        
+        // Handle equipped items for backward compatibility
+        if (!loadedState.equippedItems) {
+          loadedState.equippedItems = {
+            radio: null,
+            badge: loadedState.equipment?.find((e: EquipmentItem) => e.id === 'rookie_badge') || null,
+            weapon: null,
+            vest: null,
+            vehicle: null,
+            gadget: null
+          };
         }
         
         if (!loadedState.rank) {
@@ -731,11 +1012,36 @@ export default function Home() {
     };
   }, [gameState.activeEffects, setGameState]);
 
+  // Equipment bonuses calculation - defined early to be used in other hooks
+  const getEquipmentBonuses = useCallback(() => {
+    const bonuses = {
+      clickPower: 0,
+      passiveIncome: 0,
+      upgradeCostReduction: 0,
+      caseSuccessRate: 0,
+      eventChance: 0
+    };
+
+    Object.values(gameState.equippedItems).forEach(item => {
+      if (item) {
+        bonuses.clickPower += item.effects.clickPower || 0;
+        bonuses.passiveIncome += item.effects.passiveIncome || 0;
+        bonuses.upgradeCostReduction += item.effects.upgradeCostReduction || 0;
+        bonuses.caseSuccessRate += item.effects.caseSuccessRate || 0;
+        bonuses.eventChance += item.effects.eventChance || 0;
+      }
+    });
+
+    return bonuses;
+  }, [gameState.equippedItems]);
+
   useEffect(() => {
     if (isLoaded && gameState.passiveIncome.gt(0)) {
       const passiveTimer = setInterval(() => {
         const multipliers = getActiveMultipliers();
-        const finalPassiveIncome = gameState.passiveIncome.mul(multipliers.passiveMultiplier);
+        const equipmentBonuses = getEquipmentBonuses();
+        const equipmentPassiveBonus = new Decimal(equipmentBonuses.passiveIncome);
+        const finalPassiveIncome = gameState.passiveIncome.add(equipmentPassiveBonus).mul(multipliers.passiveMultiplier);
         
         setGameState(prev => ({
           ...prev,
@@ -746,7 +1052,7 @@ export default function Home() {
 
       return () => clearInterval(passiveTimer);
     }
-  }, [gameState.passiveIncome, isLoaded, getActiveMultipliers]);
+  }, [gameState.passiveIncome, isLoaded, getActiveMultipliers, getEquipmentBonuses]);
 
   // Track play time
   useEffect(() => {
@@ -792,10 +1098,31 @@ export default function Home() {
       isCorrect = JSON.stringify(sequenceAnswer) === JSON.stringify(correctSequence);
     }
 
-    setCaseResult({
-      success: isCorrect,
-      explanation: currentCase.explanation
-    });
+    // Apply equipment bonus to case success rate
+    const equipmentBonuses = getEquipmentBonuses();
+    const successBonus = equipmentBonuses.caseSuccessRate;
+    
+    // If the answer was wrong, give a small chance for equipment to help
+    if (!isCorrect && successBonus > 0) {
+      const bonusChance = Math.min(successBonus * 0.5, 25); // Max 25% bonus chance, half the equipment bonus
+      if (Math.random() * 100 < bonusChance) {
+        isCorrect = true;
+        setCaseResult({
+          success: true,
+          explanation: `Your equipment helped you succeed! ${currentCase.explanation}`
+        });
+      } else {
+        setCaseResult({
+          success: false,
+          explanation: currentCase.explanation
+        });
+      }
+    } else {
+      setCaseResult({
+        success: isCorrect,
+        explanation: currentCase.explanation
+      });
+    }
 
     if (isCorrect) {
       // Mark case as completed and give rewards
@@ -893,9 +1220,140 @@ export default function Home() {
     }
   }, [isLoaded, triggerRandomEvent]);
 
+  // Equipment functions
+  const getAvailableEquipment = useCallback((type: string) => {
+    return gameState.equipment.filter(item => 
+      item.type === type && 
+      item.owned &&
+      !item.equipped
+    );
+  }, [gameState.equipment]);
+
+  const canUnlockEquipment = useCallback((item: EquipmentItem) => {
+    const rankIndex = RANKS.findIndex(rank => rank.name === gameState.rank);
+    const itemRankIndex = RANKS.findIndex(rank => rank.name === item.unlockRank);
+    return rankIndex >= itemRankIndex;
+  }, [gameState.rank]);
+
+  const equipItem = useCallback((itemId: string) => {
+    setGameState(prev => {
+      const item = prev.equipment.find(e => e.id === itemId);
+      if (!item || !item.owned) return prev;
+
+      // Unequip current item of same type
+      const currentEquipped = prev.equippedItems[item.type as keyof EquipmentSlots];
+      
+      const updatedEquipment = prev.equipment.map(e => {
+        if (e.id === itemId) return { ...e, equipped: true };
+        if (currentEquipped && e.id === currentEquipped.id) return { ...e, equipped: false };
+        return e;
+      });
+
+      const updatedEquippedItems = {
+        ...prev.equippedItems,
+        [item.type]: item
+      };
+
+      return {
+        ...prev,
+        equipment: updatedEquipment,
+        equippedItems: updatedEquippedItems
+      };
+    });
+  }, [setGameState]);
+
+  const unequipItem = useCallback((type: keyof EquipmentSlots) => {
+    setGameState(prev => {
+      const currentItem = prev.equippedItems[type];
+      if (!currentItem) return prev;
+
+      const updatedEquipment = prev.equipment.map(e => 
+        e.id === currentItem.id ? { ...e, equipped: false } : e
+      );
+
+      const updatedEquippedItems = {
+        ...prev.equippedItems,
+        [type]: null
+      };
+
+      return {
+        ...prev,
+        equipment: updatedEquipment,
+        equippedItems: updatedEquippedItems
+      };
+    });
+  }, [setGameState]);
+
+  const findEquipment = useCallback(() => {
+    // Chance to find equipment based on rank and current equipment bonuses
+    const equipmentBonuses = getEquipmentBonuses();
+    const baseChance = 0.001; // 0.1% base chance per second
+    const bonusChance = equipmentBonuses.eventChance * 0.0001; // Equipment can increase chance
+    const totalChance = baseChance + bonusChance;
+
+    if (Math.random() < totalChance) {
+      const availableItems = gameState.equipment.filter(item => 
+        !item.owned && canUnlockEquipment(item)
+      );
+
+      if (availableItems.length > 0) {
+        // Weight by rarity (rarer items are less likely)
+        const rarityWeights = {
+          common: 50,
+          uncommon: 30,
+          rare: 15,
+          epic: 4,
+          legendary: 1
+        };
+
+        const weightedItems = availableItems.flatMap(item => 
+          Array(rarityWeights[item.rarity]).fill(item)
+        );
+
+        if (weightedItems.length > 0) {
+          const foundItem = weightedItems[Math.floor(Math.random() * weightedItems.length)];
+          
+          setGameState(prev => ({
+            ...prev,
+            equipment: prev.equipment.map(e => 
+              e.id === foundItem.id ? { ...e, owned: true } : e
+            )
+          }));
+
+          // Show notification
+          setEventNotifications(prev => [...prev, {
+            id: `equipment_found_${foundItem.id}`,
+            title: `${foundItem.icon} Equipment Found!`,
+            description: `You found: ${foundItem.name}`,
+            type: 'equipment_found',
+            effect: { type: 'rp_bonus', amount: 1, duration: 0 },
+            probability: 1,
+            isActive: false
+          }]);
+
+          setTimeout(() => {
+            setEventNotifications(prev => prev.filter(e => e.id !== `equipment_found_${foundItem.id}`));
+          }, 5000);
+        }
+      }
+    }
+  }, [gameState.equipment, getEquipmentBonuses, canUnlockEquipment, setGameState]);
+
+  // Equipment finding timer
+  useEffect(() => {
+    if (isLoaded) {
+      const equipmentTimer = setInterval(() => {
+        findEquipment();
+      }, 1000);
+      return () => clearInterval(equipmentTimer);
+    }
+  }, [isLoaded, findEquipment]);
+
   const handleClick = (event: React.MouseEvent<HTMLButtonElement>) => {
     const multipliers = getActiveMultipliers();
-    const finalClickValue = gameState.clickValue.mul(multipliers.clickMultiplier);
+    const equipmentBonuses = getEquipmentBonuses();
+    const equipmentClickBonus = new Decimal(equipmentBonuses.clickPower);
+    const finalClickValue = gameState.clickValue.add(equipmentClickBonus).mul(multipliers.clickMultiplier);
     
     setGameState(prev => ({
       ...prev,
@@ -910,7 +1368,8 @@ export default function Home() {
     const newAnimation = {
       id: Date.now(),
       x,
-      y
+      y,
+      value: finalClickValue // Store the actual click value for display
     };
     
     setClickAnimations(prev => [...prev, newAnimation]);
@@ -920,20 +1379,23 @@ export default function Home() {
     }, 1000);
   };
 
-  const formatNumber = (num: Decimal) => {
-    if (num.gte(1e308)) return num.toExponential(2);
-    if (num.gte(1e33)) return num.toExponential(2);
-    if (num.gte(1e30)) return num.div(1e30).toFixed(1) + ' No';
-    if (num.gte(1e27)) return num.div(1e27).toFixed(1) + ' Oc';
-    if (num.gte(1e24)) return num.div(1e24).toFixed(1) + ' Sp';
-    if (num.gte(1e21)) return num.div(1e21).toFixed(1) + ' Sx';
-    if (num.gte(1e18)) return num.div(1e18).toFixed(1) + ' Qi';
-    if (num.gte(1e15)) return num.div(1e15).toFixed(1) + ' Qa';
-    if (num.gte(1e12)) return num.div(1e12).toFixed(1) + ' T';
-    if (num.gte(1e9)) return num.div(1e9).toFixed(1) + ' B';
-    if (num.gte(1e6)) return num.div(1e6).toFixed(1) + ' M';
-    if (num.gte(1e3)) return num.div(1e3).toFixed(1) + ' K';
-    return num.floor().toString();
+  const formatNumber = (num: Decimal | number) => {
+    // Ensure we have a Decimal object
+    const decimal = num instanceof Decimal ? num : new Decimal(num);
+    
+    if (decimal.gte(1e308)) return decimal.toExponential(2);
+    if (decimal.gte(1e33)) return decimal.toExponential(2);
+    if (decimal.gte(1e30)) return decimal.div(1e30).toFixed(1) + ' No';
+    if (decimal.gte(1e27)) return decimal.div(1e27).toFixed(1) + ' Oc';
+    if (decimal.gte(1e24)) return decimal.div(1e24).toFixed(1) + ' Sp';
+    if (decimal.gte(1e21)) return decimal.div(1e21).toFixed(1) + ' Sx';
+    if (decimal.gte(1e18)) return decimal.div(1e18).toFixed(1) + ' Qi';
+    if (decimal.gte(1e15)) return decimal.div(1e15).toFixed(1) + ' Qa';
+    if (decimal.gte(1e12)) return decimal.div(1e12).toFixed(1) + ' T';
+    if (decimal.gte(1e9)) return decimal.div(1e9).toFixed(1) + ' B';
+    if (decimal.gte(1e6)) return decimal.div(1e6).toFixed(1) + ' M';
+    if (decimal.gte(1e3)) return decimal.div(1e3).toFixed(1) + ' K';
+    return decimal.floor().toString();
   };
 
   const getUpgradeCost = (upgradeType: string, currentLevel: Decimal): Decimal => {
@@ -1076,8 +1538,10 @@ export default function Home() {
   const getLegacyCostReduction = (): Decimal => {
     if (!gameState?.legacyUpgrades) return new Decimal(1);
     // -2% cost per wisdom level, minimum 10% cost
-    const reduction = gameState.legacyUpgrades.wisdom.mul(0.02);
-    return Decimal.max(new Decimal(0.1), new Decimal(1).sub(reduction));
+    const legacyReduction = gameState.legacyUpgrades.wisdom.mul(0.02);
+    const equipmentReduction = getEquipmentBonuses().upgradeCostReduction * 0.01; // Convert percentage to decimal
+    const totalReduction = legacyReduction.add(equipmentReduction);
+    return Decimal.max(new Decimal(0.1), new Decimal(1).sub(totalReduction));
   };
 
   const getRankRequirementReduction = useCallback((): Decimal => {
@@ -1128,7 +1592,9 @@ export default function Home() {
         achievements: prev.achievements, // Keep achievements
         caseFiles: prev.caseFiles, // Keep case progress
         randomEvents: prev.randomEvents, // Keep events
-        activeEffects: [] // Clear active effects on prestige
+        activeEffects: [], // Clear active effects on prestige
+        equipment: prev.equipment, // Keep equipment collection
+        equippedItems: prev.equippedItems // Keep equipped items
       }));
     }
   };
@@ -1319,7 +1785,16 @@ export default function Home() {
         achievements: [...INITIAL_ACHIEVEMENTS],
         caseFiles: [...INITIAL_CASE_FILES],
         randomEvents: [...RANDOM_EVENTS],
-        activeEffects: []
+        activeEffects: [],
+        equipment: [...INITIAL_EQUIPMENT],
+        equippedItems: {
+          radio: null,
+          badge: INITIAL_EQUIPMENT.find(e => e.id === 'rookie_badge') || null,
+          weapon: null,
+          vest: null,
+          vehicle: null,
+          gadget: null
+        }
       });
     }
   };
@@ -1536,10 +2011,10 @@ export default function Home() {
                   {formatNumber(gameState.respectPoints)} Respect Points
                 </div>
                 <div className="text-lg text-blue-200 mt-2">
-                  +{formatNumber(gameState.clickValue)} per click
-                  {gameState.passiveIncome.gt(0) && (
+                  +{formatNumber(gameState.clickValue.add(new Decimal(getEquipmentBonuses().clickPower)))} per click
+                  {(gameState.passiveIncome.gt(0) || getEquipmentBonuses().passiveIncome > 0) && (
                     <div className="text-sm text-green-300">
-                      +{formatNumber(gameState.passiveIncome)} per second
+                      +{formatNumber(gameState.passiveIncome.add(new Decimal(getEquipmentBonuses().passiveIncome)))} per second
                     </div>
                   )}
                   {rankMultiplier.gt(1) && (
@@ -1552,6 +2027,15 @@ export default function Home() {
                       Legacy Bonus: +{getLegacyMultiplier().sub(1).mul(100).toFixed(0)}%
                     </div>
                   )}
+                  {(() => {
+                    const equipmentBonuses = getEquipmentBonuses();
+                    const hasEquipmentBonuses = Object.values(equipmentBonuses).some(bonus => bonus > 0);
+                    return hasEquipmentBonuses ? (
+                      <div className="text-sm text-indigo-300">
+                        Equipment: +{equipmentBonuses.clickPower} click, +{equipmentBonuses.passiveIncome} passive
+                      </div>
+                    ) : null;
+                  })()}
                   {(() => {
                     const multipliers = getActiveMultipliers();
                     const hasActiveEffects = multipliers.clickMultiplier > 1 || multipliers.passiveMultiplier !== 1;
@@ -1617,7 +2101,7 @@ export default function Home() {
                       animation: 'fadeUpOut 1s ease-out forwards'
                     }}
                   >
-                    +{gameState.clickValue.toString()}
+                    +{anim.value ? formatNumber(anim.value) : gameState.clickValue.toString()}
                   </div>
                 ))}
               </button>
@@ -2081,6 +2565,63 @@ export default function Home() {
               </div>
             </div>
 
+            <div className="bg-indigo-800/50 rounded-lg p-6 backdrop-blur-sm border border-indigo-600/30 mb-6">
+              <h3 className="text-xl font-bold mb-4">⚔️ Equipment</h3>
+              
+              {/* Equipment Slots */}
+              <div className="grid grid-cols-2 gap-2 mb-4">
+                {Object.entries(gameState.equippedItems).map(([slotType, equippedItem]) => (
+                  <div
+                    key={slotType}
+                    className="bg-indigo-700/50 border border-indigo-500/30 rounded p-2 text-center cursor-pointer hover:bg-indigo-600/50 transition-colors"
+                    onClick={() => {
+                      setSelectedEquipmentType(slotType as keyof EquipmentSlots);
+                      setShowEquipmentModal(true);
+                    }}
+                  >
+                    <div className="text-xs text-indigo-300 capitalize">{slotType}</div>
+                    {equippedItem ? (
+                      <div className="flex flex-col items-center">
+                        <div className="text-lg">{equippedItem.icon}</div>
+                        <div className="text-xs font-semibold truncate w-full">{equippedItem.name}</div>
+                        <div className={`text-xs px-1 rounded ${
+                          equippedItem.rarity === 'common' ? 'bg-gray-600' :
+                          equippedItem.rarity === 'uncommon' ? 'bg-green-600' :
+                          equippedItem.rarity === 'rare' ? 'bg-blue-600' :
+                          equippedItem.rarity === 'epic' ? 'bg-purple-600' : 'bg-yellow-600'
+                        }`}>
+                          {equippedItem.rarity}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-gray-400 text-sm py-2">Empty</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Equipment Bonuses Summary */}
+              {(() => {
+                const bonuses = getEquipmentBonuses();
+                const hasAnyBonus = Object.values(bonuses).some(bonus => bonus > 0);
+                return hasAnyBonus ? (
+                  <div className="bg-indigo-900/50 rounded p-2 text-xs">
+                    <div className="text-indigo-300 font-semibold mb-1">Equipment Bonuses:</div>
+                    {bonuses.clickPower > 0 && <div>+{bonuses.clickPower} Click Power</div>}
+                    {bonuses.passiveIncome > 0 && <div>+{bonuses.passiveIncome} Passive Income</div>}
+                    {bonuses.caseSuccessRate > 0 && <div>+{bonuses.caseSuccessRate}% Case Success</div>}
+                    {bonuses.upgradeCostReduction > 0 && <div>-{bonuses.upgradeCostReduction}% Upgrade Costs</div>}
+                    {bonuses.eventChance > 0 && <div>+{bonuses.eventChance}% Event Chance</div>}
+                  </div>
+                ) : null;
+              })()}
+
+              {/* Equipment Collection Progress */}
+              <div className="text-center text-xs text-indigo-400 mt-4">
+                {gameState.equipment.filter(e => e.owned).length} / {gameState.equipment.length} equipment collected
+              </div>
+            </div>
+
             <div className="bg-blue-800/50 rounded-lg p-6 backdrop-blur-sm border border-blue-600/30">
               <h3 className="text-xl font-bold mb-4">Statistics</h3>
               <div className="space-y-2 text-sm">
@@ -2274,6 +2815,141 @@ export default function Home() {
                 )}
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Equipment Modal */}
+      {showEquipmentModal && selectedEquipmentType && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-indigo-900 rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-indigo-600">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-white capitalize">{selectedEquipmentType} Equipment</h2>
+              <button
+                onClick={() => {
+                  setShowEquipmentModal(false);
+                  setSelectedEquipmentType(null);
+                }}
+                className="text-gray-300 hover:text-white text-xl"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Currently Equipped */}
+            {gameState.equippedItems[selectedEquipmentType] && (
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-indigo-300 mb-2">Currently Equipped:</h3>
+                <div className="bg-indigo-800/50 border border-indigo-500/30 rounded p-3">
+                  <div className="flex items-center gap-3">
+                    <div className="text-2xl">{gameState.equippedItems[selectedEquipmentType]!.icon}</div>
+                    <div className="flex-1">
+                      <div className="font-semibold">{gameState.equippedItems[selectedEquipmentType]!.name}</div>
+                      <div className="text-sm text-indigo-200">{gameState.equippedItems[selectedEquipmentType]!.description}</div>
+                      <div className="text-xs text-indigo-300">
+                        {Object.entries(gameState.equippedItems[selectedEquipmentType]!.effects).map(([effect, value]) => 
+                          value ? <span key={effect} className="mr-2">+{value} {effect.replace(/([A-Z])/g, ' $1').toLowerCase()}</span> : null
+                        )}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => unequipItem(selectedEquipmentType)}
+                      className="px-3 py-1 bg-red-600 hover:bg-red-500 rounded text-sm"
+                    >
+                      Unequip
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Available Equipment */}
+            <div className="mb-4">
+              <h3 className="text-lg font-semibold text-indigo-300 mb-2">Available Equipment:</h3>
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {getAvailableEquipment(selectedEquipmentType).length > 0 ? (
+                  getAvailableEquipment(selectedEquipmentType).map(item => (
+                    <div
+                      key={item.id}
+                      className="bg-indigo-800/50 border border-indigo-500/30 rounded p-3"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="text-2xl">{item.icon}</div>
+                        <div className="flex-1">
+                          <div className="font-semibold flex items-center gap-2">
+                            {item.name}
+                            <span className={`text-xs px-1 rounded ${
+                              item.rarity === 'common' ? 'bg-gray-600' :
+                              item.rarity === 'uncommon' ? 'bg-green-600' :
+                              item.rarity === 'rare' ? 'bg-blue-600' :
+                              item.rarity === 'epic' ? 'bg-purple-600' : 'bg-yellow-600'
+                            }`}>
+                              {item.rarity}
+                            </span>
+                          </div>
+                          <div className="text-sm text-indigo-200">{item.description}</div>
+                          <div className="text-xs text-green-300">
+                            {Object.entries(item.effects).map(([effect, value]) => 
+                              value ? <span key={effect} className="mr-2">+{value} {effect.replace(/([A-Z])/g, ' $1').toLowerCase()}</span> : null
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => equipItem(item.id)}
+                          className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 rounded text-sm"
+                        >
+                          Equip
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center text-indigo-300 text-sm py-4">
+                    No {selectedEquipmentType} equipment available. Find more equipment through gameplay!
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* All Equipment Collection */}
+            <div>
+              <h3 className="text-lg font-semibold text-indigo-300 mb-2">Collection ({selectedEquipmentType}):</h3>
+              <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                {gameState.equipment
+                  .filter(item => item.type === selectedEquipmentType)
+                  .map(item => (
+                    <div
+                      key={item.id}
+                      className={`border rounded p-2 text-xs ${
+                        item.owned 
+                          ? 'bg-indigo-700/50 border-indigo-500/30' 
+                          : 'bg-gray-700/50 border-gray-600/30 opacity-60'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="text-base">{item.icon}</div>
+                        <div className="flex-1">
+                          <div className="font-semibold">{item.name}</div>
+                          <div className={`text-xs px-1 rounded ${
+                            item.rarity === 'common' ? 'bg-gray-600' :
+                            item.rarity === 'uncommon' ? 'bg-green-600' :
+                            item.rarity === 'rare' ? 'bg-blue-600' :
+                            item.rarity === 'epic' ? 'bg-purple-600' : 'bg-yellow-600'
+                          }`}>
+                            {item.rarity}
+                          </div>
+                          {!item.owned && canUnlockEquipment(item) && (
+                            <div className="text-yellow-300 text-xs">Available to find</div>
+                          )}
+                          {!item.owned && !canUnlockEquipment(item) && (
+                            <div className="text-red-300 text-xs">Requires {item.unlockRank}</div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
           </div>
         </div>
       )}
