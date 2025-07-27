@@ -592,6 +592,15 @@ export default function Home() {
     return Decimal.max(new Decimal(0.1), new Decimal(1).sub(reduction));
   };
 
+  const getRankRequirementReduction = (): Decimal => {
+    if (!gameState?.legacyUpgrades) return new Decimal(1);
+    // -10% rank requirements per equipment level, minimum 10% requirements
+    const reductionPerLevel = new Decimal(0.1);
+    const totalReduction = gameState.legacyUpgrades.equipment.mul(reductionPerLevel);
+    const multiplier = Decimal.pow(new Decimal(0.9), gameState.legacyUpgrades.equipment);
+    return Decimal.max(new Decimal(0.1), multiplier);
+  };
+
   const calculatePrestigeGain = (): Decimal => {
     if (!gameState?.totalRP) return new Decimal(0);
     const prestigeThreshold = new Decimal(50000); // 50K RP
@@ -890,7 +899,13 @@ export default function Home() {
     const currentRankIndex = RANKS.findIndex(rank => rank.name === gameState.rank);
     const nextRankIndex = currentRankIndex + 1;
     
-    if (nextRankIndex < RANKS.length && gameState.respectPoints.gte(RANKS[nextRankIndex].requirement)) {
+    // Apply legacy equipment reduction to rank requirements
+    const rankReduction = getRankRequirementReduction();
+    const adjustedRequirement = nextRankIndex < RANKS.length 
+      ? RANKS[nextRankIndex].requirement.mul(rankReduction)
+      : new Decimal(Infinity);
+    
+    if (nextRankIndex < RANKS.length && gameState.respectPoints.gte(adjustedRequirement)) {
       setGameState(prev => {
         const newState = { ...prev, rank: RANKS[nextRankIndex].name };
         const rankMultiplier = new Decimal(1 + (nextRankIndex * 0.25));
@@ -920,15 +935,21 @@ export default function Home() {
   };
 
   const getCurrentRankInfo = () => {
-    if (!gameState?.rank) return { current: RANKS[0], next: RANKS[1], progress: 0 };
+    if (!gameState?.rank) return { current: RANKS[0], next: RANKS[1], progress: 0, adjustedRequirement: new Decimal(0) };
     const currentIndex = RANKS.findIndex(rank => rank.name === gameState.rank);
     const nextIndex = currentIndex + 1;
+    
+    const rankReduction = getRankRequirementReduction();
+    const adjustedRequirement = nextIndex < RANKS.length 
+      ? RANKS[nextIndex].requirement.mul(rankReduction)
+      : new Decimal(0);
     
     return {
       current: RANKS[currentIndex] || RANKS[0],
       next: nextIndex < RANKS.length ? RANKS[nextIndex] : null,
+      adjustedRequirement,
       progress: nextIndex < RANKS.length 
-        ? Math.min(100, gameState.respectPoints.div(RANKS[nextIndex].requirement).mul(100).toNumber())
+        ? Math.min(100, gameState.respectPoints.div(adjustedRequirement).mul(100).toNumber())
         : 100
     };
   };
@@ -1022,7 +1043,12 @@ export default function Home() {
                   return rankInfo.next ? (
                     <div className="mt-4">
                       <div className="text-sm text-blue-200 mb-2">
-                        Next: {rankInfo.next.name} ({formatNumber(rankInfo.next.requirement)} RP)
+                        Next: {rankInfo.next.name} ({formatNumber(rankInfo.adjustedRequirement)} RP)
+                        {getRankRequirementReduction().lt(1) && (
+                          <span className="text-purple-300 text-xs ml-1">
+                            (was {formatNumber(rankInfo.next.requirement)})
+                          </span>
+                        )}
                       </div>
                       <div className="w-full bg-blue-900/50 rounded-full h-2">
                         <div 
@@ -1342,6 +1368,12 @@ export default function Home() {
                         <span>Cost Reduction:</span>
                         <span className="text-blue-300">-{new Decimal(1).sub(getLegacyCostReduction()).mul(100).toFixed(0)}%</span>
                       </div>
+                      {gameState.legacyUpgrades.equipment.gt(0) && (
+                        <div className="flex justify-between">
+                          <span>Rank Acceleration:</span>
+                          <span className="text-orange-300">-{new Decimal(1).sub(getRankRequirementReduction()).mul(100).toFixed(1)}%</span>
+                        </div>
+                      )}
                     </>
                   )}
                   {canPrestige() && (
@@ -1411,8 +1443,13 @@ export default function Home() {
                     }`}
                   >
                     <div className="font-semibold text-sm">🔨 Legacy Equipment ({gameState.legacyUpgrades.equipment.toString()})</div>
-                    <div className="text-xs text-purple-200">Unlock upgrades earlier (coming soon)</div>
+                    <div className="text-xs text-purple-200">-10% rank requirements per level</div>
                     <div className="text-xs text-yellow-300">Cost: {formatNumber(getLegacyUpgradeCost('equipment'))} LP</div>
+                    {gameState.legacyUpgrades.equipment.gt(0) && (
+                      <div className="text-xs text-green-300">
+                        Current: -{new Decimal(1).sub(getRankRequirementReduction()).mul(100).toFixed(1)}% requirements
+                      </div>
+                    )}
                   </button>
                 </div>
               </div>

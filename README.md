@@ -41,8 +41,12 @@ A browser-based clicker game where players progress through a police officer's c
 
 **💎 Legacy Upgrades:**
 - **⚡ Legacy Efficiency**: +10% income per level (cost: 2^level LP)
-- **🧠 Legacy Wisdom**: -2% upgrade costs per level (cost: 2^level LP)
-- **🔨 Legacy Equipment**: Future unlock system (cost: 2^level LP)
+- **🧠 Legacy Wisdom**: -2% upgrade costs per level (cost: 2^level LP)  
+- **🔨 Legacy Equipment**: -10% rank requirements per level (cost: 2^level LP)
+  - Reduces RP needed for all rank promotions
+  - Stacks multiplicatively (Level 3 = 72.9% requirements)
+  - Maximum 90% reduction at Level 10+
+  - Faster rank progression = faster rank bonuses
 
 ### Achievement System
 **🏆 Achievement Categories:**
