@@ -110,11 +110,26 @@ A browser-based clicker game where players progress through a police officer's c
 - **Persistent Preferences**: Sound settings saved with game progress
 - **Performance Optimized**: Minimal memory usage with efficient real-time audio generation
 
+### Theme System
+**🎨 Visual Customization:**
+- **3 Theme Modes**: Dark, Light, and Auto (follows system preference detection)
+- **Real-time Theme Switching**: Instant visual transitions with smooth 300ms animations
+- **Custom Color Palette**: User-configurable primary, secondary, and accent colors
+- **Color Picker Interface**: Intuitive hex color selection with live preview
+- **CSS Custom Properties**: Dynamic theme variables for consistent styling across all components
+- **Professional Color Schemes**: High-contrast dark and light themes optimized for readability
+- **Themed Scrollbars**: Custom scrollbar styling that adapts to the selected theme
+- **System Integration**: Auto mode automatically detects and follows OS dark/light preference
+- **Reset Functionality**: One-click restoration to default police-themed color scheme
+- **Persistent Settings**: Theme preferences and custom colors saved with game progress
+
 ### Statistics & UI
 - **Comprehensive Stats**: Track total RP, rank, click power, passive income, and upgrades
-- **Responsive Design**: Works on desktop and mobile devices
-- **Police Theme**: Blue gradient background with police car emoji and themed UI
+- **Adaptive Design**: Works on desktop and mobile devices with responsive layouts
+- **Dynamic Theming**: User-customizable dark/light themes with police-inspired color schemes
 - **Real-time Updates**: All displays update dynamically with game state changes
+- **Accessibility**: High contrast ratios and theme-aware styling for optimal readability
+- **Settings Panel**: Centralized control for sound, theme, and game preferences
 
 ## 🚀 Getting Started
 
@@ -158,6 +173,7 @@ npx tsc --noEmit
 - **Turbopack** - Fast development builds
 - **break_eternity.js** - Big number support for astronomical values
 - **Web Audio API** - Professional sound effects and ambient audio synthesis
+- **CSS Custom Properties** - Dynamic theming system with real-time color customization
 
 ## 📋 Development Roadmap
 
@@ -191,7 +207,7 @@ npx tsc --noEmit
 - [x] Enhanced visual feedback and color coding
 - [x] Responsive button interactions
 - [x] Sound effects and ambient audio system
-- [ ] Dark/light theme toggle
+- [x] Dark/light theme toggle with customization
 - [ ] Mobile responsive design improvements
 
 ### 🌟 Phase 4: Extended Content (Future)
