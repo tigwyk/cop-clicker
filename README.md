@@ -69,10 +69,41 @@ A browser-based clicker game where players progress through a police officer's c
 - Automation multipliers for exponential growth
 - Reduced emphasis on clicking in favor of strategic upgrading
 
+### Mini-Games & Events
+**📋 Case-Solving System:**
+- **Multiple Game Types**: Multiple choice, sequence ordering, evidence analysis
+- **Difficulty Tiers**: Easy, Medium, Hard, Expert cases with varying rewards
+- **Timer Challenges**: Time-limited cases for extra pressure
+- **Equipment Bonuses**: Equipped gear can improve success rates
+- **Rank Progression**: New cases unlock as you advance through ranks
+
+**🎲 Random Events:**
+- **Dynamic Events**: Crime waves, commendations, equipment finds, training opportunities
+- **Temporary Bonuses**: Click multipliers, passive income boosts, upgrade discounts
+- **Rank-Based**: Higher ranks unlock access to more event types
+- **Visual Notifications**: Real-time event notifications with effects
+
+### Equipment System
+**⚔️ Gear Management:**
+- **6 Equipment Slots**: Radio, Badge, Weapon, Vest, Vehicle, Gadget
+- **5 Rarity Tiers**: Common, Uncommon, Rare, Epic, Legendary
+- **Multiple Effects**: Click power, passive income, upgrade costs, case success rates
+- **Collection Progress**: Discover and equip better gear as you progress
+- **Visual Equipment Grid**: Dedicated UI for managing your equipment loadout
+
+### Enhanced Animations & Effects
+**✨ Visual Polish:**
+- **Color-Coded Numbers**: Blue (small), Green (medium), Gold (large values)
+- **Advanced Animations**: FloatUp particle effects with scale transitions
+- **Interactive Feedback**: Button pulse animations for affordable upgrades
+- **Glow Effects**: Main button glows when bonuses are active
+- **Achievement Celebrations**: Gradient notifications with dual animations
+
 ### Statistics & UI
 - **Comprehensive Stats**: Track total RP, rank, click power, passive income, and upgrades
 - **Responsive Design**: Works on desktop and mobile devices
 - **Police Theme**: Blue gradient background with police car emoji and themed UI
+- **Real-time Updates**: All displays update dynamically with game state changes
 
 ## 🚀 Getting Started
 
@@ -127,20 +158,29 @@ npx tsc --noEmit
 - [x] Visual feedback and animations
 - [x] Responsive UI design
 
-### ✅ Phase 2: Core Progression (In Progress)
+### ✅ Phase 2: Core Progression (Complete)
 - [x] Prestige system ("Retirement" mechanic)
 - [x] Legacy Points currency
 - [x] Permanent progression bonuses
-- [x] Achievement system
-- [ ] Case-solving mini-games
-- [ ] Random events
+- [x] Achievement system with real-time unlocking
+- [x] Case-solving mini-games (multiple choice, sequence, evidence)
+- [x] Random events system with temporary bonuses
 
-### 🎯 Phase 3: Advanced Features (Future)
-- [ ] Equipment system
-- [ ] Department management
-- [ ] Sound effects and animations
+### ✅ Phase 3: Advanced Features (Complete)
+- [x] Equipment system with 6 slot types and rarity tiers
+- [x] Enhanced animations and particle effects
+- [x] Visual click feedback with color-coded numbers
+- [x] Button hover animations and glow effects
+- [x] Achievement notification animations
+- [x] Auto-save with localStorage persistence
+
+### 🎯 Phase 4: Polish & Enhancement (In Progress)
+- [x] Advanced click animations with particle effects
+- [x] Enhanced visual feedback and color coding
+- [x] Responsive button interactions
+- [ ] Sound effects and ambient audio
 - [ ] Dark/light theme toggle
-- [ ] Export/import saves
+- [ ] Mobile responsive design improvements
 
 ### 🌟 Phase 4: Extended Content (Future)
 - [ ] Specialized units (SWAT, K-9, Detective)
@@ -157,10 +197,11 @@ npx tsc --noEmit
 - **Automation Rewards**: AI systems provide exponential scaling for dedicated players
 
 **Progression Curve:**
-- **Early Game** (0-100 RP): Learn clicking, unlock first Partner
-- **Mid Game** (100-1K RP): Build passive income portfolio, achieve Detective rank
-- **Late Game** (1K+ RP): Focus on high-tier generators and automation
-- **End Game** (5K+ RP): Automation multipliers create exponential growth
+- **Early Game** (0-100 RP): Learn clicking, unlock first Partner, solve basic cases
+- **Mid Game** (100-1K RP): Build passive income portfolio, achieve Detective rank, unlock equipment
+- **Late Game** (1K+ RP): Focus on high-tier generators, complete complex cases, optimize equipment
+- **End Game** (5K+ RP): Automation multipliers, prestige cycling, achievement hunting
+- **Master Game** (50K+ RP): Multiple prestige runs, legacy upgrade optimization, rare equipment collection
 
 **Cost Scaling:**
 - **Gentle Early Scaling**: 1.3x-1.6x for early upgrades
