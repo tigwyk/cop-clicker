@@ -844,6 +844,8 @@ export default function Home() {
   const [showEquipmentModal, setShowEquipmentModal] = useState(false);
   const [selectedEquipmentType, setSelectedEquipmentType] = useState<'radio' | 'badge' | 'weapon' | 'vest' | 'vehicle' | 'gadget' | null>(null);
   const [showStatsModal, setShowStatsModal] = useState(false);
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [importData, setImportData] = useState('');
 
   // Sound Management
   const audioContext = useRef<AudioContext | null>(null);
@@ -2122,6 +2124,190 @@ export default function Home() {
     }
   };
 
+  // Export/Import Save Functionality
+  const exportSave = useCallback(() => {
+    try {
+      const saveData = {
+        respectPoints: gameState.respectPoints.toString(),
+        clickValue: gameState.clickValue.toString(),
+        rank: gameState.rank,
+        passiveIncome: gameState.passiveIncome.toString(),
+        legacyPoints: gameState.legacyPoints.toString(),
+        totalRP: gameState.totalRP.toString(),
+        prestigeCount: gameState.prestigeCount.toString(),
+        playTime: gameState.playTime,
+        upgrades: {
+          equipment: gameState.upgrades.equipment.toString(),
+          training: gameState.upgrades.training.toString(),
+          partner: gameState.upgrades.partner.toString(),
+          patrol: gameState.upgrades.patrol.toString(),
+          investigation: gameState.upgrades.investigation.toString(),
+          precinct: gameState.upgrades.precinct.toString(),
+          automation: gameState.upgrades.automation.toString()
+        },
+        legacyUpgrades: {
+          efficiency: gameState.legacyUpgrades.efficiency.toString(),
+          wisdom: gameState.legacyUpgrades.wisdom.toString(),
+          equipment: gameState.legacyUpgrades.equipment.toString()
+        },
+        achievements: gameState.achievements,
+        caseFiles: gameState.caseFiles,
+        randomEvents: gameState.randomEvents,
+        activeEffects: gameState.activeEffects,
+        equipment: gameState.equipment,
+        equippedItems: gameState.equippedItems,
+        soundSettings: gameState.soundSettings,
+        themeSettings: gameState.themeSettings,
+        statistics: {
+          totalClicks: gameState.statistics.totalClicks.toString(),
+          totalUpgradesPurchased: gameState.statistics.totalUpgradesPurchased.toString(),
+          totalCasesSolved: gameState.statistics.totalCasesSolved.toString(),
+          totalAchievementsUnlocked: gameState.statistics.totalAchievementsUnlocked.toString(),
+          totalPrestigeCount: gameState.statistics.totalPrestigeCount.toString(),
+          sessionsPlayed: gameState.statistics.sessionsPlayed.toString(),
+          currentStreak: gameState.statistics.currentStreak.toString(),
+          bestClicksPerSecond: gameState.statistics.bestClicksPerSecond,
+          totalTimeInRanks: gameState.statistics.totalTimeInRanks,
+          firstPlayDate: gameState.statistics.firstPlayDate,
+          lastPlayDate: gameState.statistics.lastPlayDate,
+          totalRPEarned: gameState.statistics.totalRPEarned.toString(),
+          totalRPSpent: gameState.statistics.totalRPSpent.toString(),
+          averageSessionLength: gameState.statistics.averageSessionLength,
+          longestSession: gameState.statistics.longestSession
+        },
+        exportDate: Date.now(),
+        version: '1.0'
+      };
+      
+      const exportString = btoa(JSON.stringify(saveData));
+      
+      // Create and trigger download
+      const blob = new Blob([exportString], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `cop-clicker-save-${new Date().toISOString().split('T')[0]}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      alert('Save exported successfully!');
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('Failed to export save data. Please try again.');
+    }
+  }, [gameState]);
+
+  const importSave = useCallback(() => {
+    if (!importData.trim()) {
+      alert('Please paste your save data first.');
+      return;
+    }
+    
+    try {
+      const decodedData = atob(importData.trim());
+      const saveData = JSON.parse(decodedData);
+      
+      // Validate save data structure
+      if (!saveData.respectPoints || !saveData.upgrades || !saveData.version) {
+        throw new Error('Invalid save data format');
+      }
+      
+      // Convert string values back to Decimals
+      const convertToDecimal = (value: string) => new Decimal(value);
+      
+      const newGameState: GameState = {
+        respectPoints: convertToDecimal(saveData.respectPoints),
+        clickValue: convertToDecimal(saveData.clickValue),
+        rank: saveData.rank,
+        passiveIncome: convertToDecimal(saveData.passiveIncome),
+        legacyPoints: convertToDecimal(saveData.legacyPoints),
+        totalRP: convertToDecimal(saveData.totalRP),
+        prestigeCount: convertToDecimal(saveData.prestigeCount),
+        playTime: saveData.playTime,
+        upgrades: {
+          equipment: convertToDecimal(saveData.upgrades.equipment),
+          training: convertToDecimal(saveData.upgrades.training),
+          partner: convertToDecimal(saveData.upgrades.partner),
+          patrol: convertToDecimal(saveData.upgrades.patrol),
+          investigation: convertToDecimal(saveData.upgrades.investigation),
+          precinct: convertToDecimal(saveData.upgrades.precinct),
+          automation: convertToDecimal(saveData.upgrades.automation)
+        },
+        legacyUpgrades: {
+          efficiency: convertToDecimal(saveData.legacyUpgrades.efficiency),
+          wisdom: convertToDecimal(saveData.legacyUpgrades.wisdom),
+          equipment: convertToDecimal(saveData.legacyUpgrades.equipment)
+        },
+        achievements: saveData.achievements || [...INITIAL_ACHIEVEMENTS],
+        caseFiles: saveData.caseFiles || [...INITIAL_CASE_FILES],
+        randomEvents: saveData.randomEvents || [...RANDOM_EVENTS],
+        activeEffects: saveData.activeEffects || [],
+        equipment: saveData.equipment || [...INITIAL_EQUIPMENT],
+        equippedItems: saveData.equippedItems || {
+          radio: null,
+          badge: INITIAL_EQUIPMENT.find(e => e.id === 'rookie_badge') || null,
+          weapon: null,
+          vest: null,
+          vehicle: null,
+          gadget: null
+        },
+        soundSettings: saveData.soundSettings || {
+          masterVolume: 0.7,
+          sfxEnabled: true,
+          ambientEnabled: true,
+          sfxVolume: 0.8,
+          ambientVolume: 0.3
+        },
+        themeSettings: saveData.themeSettings || {
+          theme: 'dark',
+          customColors: {
+            primary: '#3b82f6',
+            secondary: '#1e40af',
+            accent: '#fbbf24'
+          }
+        },
+        statistics: {
+          totalClicks: convertToDecimal(saveData.statistics?.totalClicks || '0'),
+          totalUpgradesPurchased: convertToDecimal(saveData.statistics?.totalUpgradesPurchased || '0'),
+          totalCasesSolved: convertToDecimal(saveData.statistics?.totalCasesSolved || '0'),
+          totalAchievementsUnlocked: convertToDecimal(saveData.statistics?.totalAchievementsUnlocked || '0'),
+          totalPrestigeCount: convertToDecimal(saveData.statistics?.totalPrestigeCount || '0'),
+          sessionsPlayed: convertToDecimal(saveData.statistics?.sessionsPlayed || '1'),
+          currentStreak: convertToDecimal(saveData.statistics?.currentStreak || '0'),
+          bestClicksPerSecond: saveData.statistics?.bestClicksPerSecond || 0,
+          totalTimeInRanks: saveData.statistics?.totalTimeInRanks || {},
+          firstPlayDate: saveData.statistics?.firstPlayDate || Date.now(),
+          lastPlayDate: Date.now(),
+          totalRPEarned: convertToDecimal(saveData.statistics?.totalRPEarned || '0'),
+          totalRPSpent: convertToDecimal(saveData.statistics?.totalRPSpent || '0'),
+          averageSessionLength: saveData.statistics?.averageSessionLength || 0,
+          longestSession: saveData.statistics?.longestSession || 0
+        }
+      };
+      
+      setGameState(newGameState);
+      
+      // Save to localStorage
+      const saveState = {
+        ...saveData,
+        statistics: {
+          ...saveData.statistics,
+          lastPlayDate: Date.now()
+        }
+      };
+      localStorage.setItem('cop-clicker-save', JSON.stringify(saveState));
+      
+      setShowImportModal(false);
+      setImportData('');
+      alert('Save imported successfully!');
+    } catch (error) {
+      console.error('Import failed:', error);
+      alert('Failed to import save data. Please check the format and try again.');
+    }
+  }, [importData, setGameState]);
+
   const buyUpgrade = (upgradeType: 'equipment' | 'training' | 'partner' | 'patrol' | 'investigation' | 'precinct' | 'automation') => {
     let quantity: Decimal;
     
@@ -3219,6 +3405,26 @@ export default function Home() {
                   </div>
                 </div>
                 
+                {/* Save Management */}
+                <div className="space-y-3">
+                  <h4 className="text-sm font-bold text-gray-200">💾 Save Management</h4>
+                  
+                  <div className="space-y-2">
+                    <button
+                      onClick={exportSave}
+                      className="w-full p-2 bg-blue-600 hover:bg-blue-500 rounded text-sm font-semibold transition-colors"
+                    >
+                      📤 Export Save
+                    </button>
+                    <button
+                      onClick={() => setShowImportModal(true)}
+                      className="w-full p-2 bg-purple-600 hover:bg-purple-500 rounded text-sm font-semibold transition-colors"
+                    >
+                      📥 Import Save
+                    </button>
+                  </div>
+                </div>
+                
                 <button
                   onClick={() => setShowStatsModal(true)}
                   className="w-full p-2 bg-indigo-600 hover:bg-indigo-500 rounded text-sm font-semibold transition-colors"
@@ -3682,6 +3888,69 @@ export default function Home() {
               >
                 Close
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Import Save Modal */}
+      {showImportModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-900 rounded-lg p-6 max-w-2xl w-full border border-gray-600">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-white">📥 Import Save Data</h2>
+              <button
+                onClick={() => {
+                  setShowImportModal(false);
+                  setImportData('');
+                }}
+                className="text-gray-400 hover:text-white text-xl font-bold"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  Save Data:
+                </label>
+                <textarea
+                  value={importData}
+                  onChange={(e) => setImportData(e.target.value)}
+                  placeholder="Paste your exported save data here..."
+                  className="w-full h-32 p-3 bg-gray-800 border border-gray-600 rounded text-white placeholder-gray-400 focus:border-purple-500 focus:outline-none resize-none"
+                />
+              </div>
+              
+              <div className="bg-yellow-900/30 border border-yellow-600/50 rounded-lg p-3">
+                <div className="flex items-start">
+                  <span className="text-yellow-400 mr-2">⚠️</span>
+                  <div className="text-yellow-200 text-sm">
+                    <strong>Warning:</strong> Importing save data will completely replace your current progress. 
+                    Make sure to export your current save first if you want to keep it.
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowImportModal(false);
+                    setImportData('');
+                  }}
+                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 rounded text-white font-semibold transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={importSave}
+                  disabled={!importData.trim()}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-500 disabled:bg-gray-600 disabled:cursor-not-allowed rounded text-white font-semibold transition-colors"
+                >
+                  Import Save
+                </button>
+              </div>
             </div>
           </div>
         </div>
