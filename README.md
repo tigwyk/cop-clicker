@@ -99,6 +99,17 @@ A browser-based clicker game where players progress through a police officer's c
 - **Glow Effects**: Main button glows when bonuses are active
 - **Achievement Celebrations**: Gradient notifications with dual animations
 
+### Sound System
+**🔊 Audio Experience:**
+- **Dynamic Sound Effects**: Unique tones for clicks, upgrades, achievements, case results, and rank-ups
+- **Web Audio API**: Professional audio synthesis using oscillators (sine, square, triangle, sawtooth waves)
+- **Ambient Audio**: Optional looping police radio chatter background
+- **Volume Controls**: Master volume slider with separate SFX and ambient controls
+- **Smart Settings**: Per-category enable/disable toggles with test sound functionality
+- **Cross-Browser Support**: Compatible with AudioContext and webkitAudioContext
+- **Persistent Preferences**: Sound settings saved with game progress
+- **Performance Optimized**: Minimal memory usage with efficient real-time audio generation
+
 ### Statistics & UI
 - **Comprehensive Stats**: Track total RP, rank, click power, passive income, and upgrades
 - **Responsive Design**: Works on desktop and mobile devices
@@ -146,6 +157,7 @@ npx tsc --noEmit
 - **Tailwind CSS v4** - Utility-first CSS framework
 - **Turbopack** - Fast development builds
 - **break_eternity.js** - Big number support for astronomical values
+- **Web Audio API** - Professional sound effects and ambient audio synthesis
 
 ## 📋 Development Roadmap
 
@@ -178,7 +190,7 @@ npx tsc --noEmit
 - [x] Advanced click animations with particle effects
 - [x] Enhanced visual feedback and color coding
 - [x] Responsive button interactions
-- [ ] Sound effects and ambient audio
+- [x] Sound effects and ambient audio system
 - [ ] Dark/light theme toggle
 - [ ] Mobile responsive design improvements
 
