@@ -133,6 +133,23 @@ interface GameState {
       accent: string;
     };
   };
+  statistics: {
+    totalClicks: Decimal;
+    totalUpgradesPurchased: Decimal;
+    totalCasesSolved: Decimal;
+    totalAchievementsUnlocked: Decimal;
+    totalPrestigeCount: Decimal;
+    sessionsPlayed: Decimal;
+    currentStreak: Decimal;
+    bestClicksPerSecond: number;
+    totalTimeInRanks: { [rank: string]: number };
+    firstPlayDate: number;
+    lastPlayDate: number;
+    totalRPEarned: Decimal;
+    totalRPSpent: Decimal;
+    averageSessionLength: number;
+    longestSession: number;
+  };
 }
 
 const RANKS = [
@@ -793,6 +810,23 @@ export default function Home() {
         secondary: '#1e40af',
         accent: '#fbbf24'
       }
+    },
+    statistics: {
+      totalClicks: new Decimal(0),
+      totalUpgradesPurchased: new Decimal(0),
+      totalCasesSolved: new Decimal(0),
+      totalAchievementsUnlocked: new Decimal(0),
+      totalPrestigeCount: new Decimal(0),
+      sessionsPlayed: new Decimal(1),
+      currentStreak: new Decimal(0),
+      bestClicksPerSecond: 0,
+      totalTimeInRanks: {},
+      firstPlayDate: Date.now(),
+      lastPlayDate: Date.now(),
+      totalRPEarned: new Decimal(0),
+      totalRPSpent: new Decimal(0),
+      averageSessionLength: 0,
+      longestSession: 0
     }
   });
 
@@ -809,6 +843,7 @@ export default function Home() {
   const [sequenceAnswer, setSequenceAnswer] = useState<number[]>([]);
   const [showEquipmentModal, setShowEquipmentModal] = useState(false);
   const [selectedEquipmentType, setSelectedEquipmentType] = useState<'radio' | 'badge' | 'weapon' | 'vest' | 'vehicle' | 'gadget' | null>(null);
+  const [showStatsModal, setShowStatsModal] = useState(false);
 
   // Sound Management
   const audioContext = useRef<AudioContext | null>(null);
@@ -1076,6 +1111,42 @@ export default function Home() {
           };
         }
         
+        // Handle statistics for backward compatibility
+        if (!loadedState.statistics) {
+          loadedState.statistics = {
+            totalClicks: new Decimal(0),
+            totalUpgradesPurchased: new Decimal(0),
+            totalCasesSolved: new Decimal(0),
+            totalAchievementsUnlocked: new Decimal(0),
+            totalPrestigeCount: loadedState.prestigeCount || new Decimal(0),
+            sessionsPlayed: new Decimal(1),
+            currentStreak: new Decimal(0),
+            bestClicksPerSecond: 0,
+            totalTimeInRanks: {},
+            firstPlayDate: Date.now(),
+            lastPlayDate: Date.now(),
+            totalRPEarned: loadedState.totalRP || new Decimal(0),
+            totalRPSpent: new Decimal(0),
+            averageSessionLength: 0,
+            longestSession: 0
+          };
+        } else {
+          // Convert Decimal fields if they exist
+          loadedState.statistics.totalClicks = convertToDecimal(loadedState.statistics.totalClicks || 0);
+          loadedState.statistics.totalUpgradesPurchased = convertToDecimal(loadedState.statistics.totalUpgradesPurchased || 0);
+          loadedState.statistics.totalCasesSolved = convertToDecimal(loadedState.statistics.totalCasesSolved || 0);
+          loadedState.statistics.totalAchievementsUnlocked = convertToDecimal(loadedState.statistics.totalAchievementsUnlocked || 0);
+          loadedState.statistics.totalPrestigeCount = convertToDecimal(loadedState.statistics.totalPrestigeCount || 0);
+          loadedState.statistics.sessionsPlayed = convertToDecimal(loadedState.statistics.sessionsPlayed || 1);
+          loadedState.statistics.currentStreak = convertToDecimal(loadedState.statistics.currentStreak || 0);
+          loadedState.statistics.totalRPEarned = convertToDecimal(loadedState.statistics.totalRPEarned || 0);
+          loadedState.statistics.totalRPSpent = convertToDecimal(loadedState.statistics.totalRPSpent || 0);
+          
+          // Update session tracking
+          loadedState.statistics.sessionsPlayed = loadedState.statistics.sessionsPlayed.add(1);
+          loadedState.statistics.lastPlayDate = Date.now();
+        }
+        
         // Recalculate values to ensure consistency
         const rankIndex = RANKS.findIndex(rank => rank.name === loadedState.rank);
         const rankMultiplier = new Decimal(rankIndex >= 0 ? 1 + (rankIndex * 0.25) : 1);
@@ -1325,7 +1396,12 @@ export default function Home() {
           ...prev,
           caseFiles: updatedCases,
           respectPoints: prev.respectPoints.add(currentCase.rewards.rp),
-          totalRP: prev.totalRP.add(currentCase.rewards.rp)
+          totalRP: prev.totalRP.add(currentCase.rewards.rp),
+          statistics: {
+            ...prev.statistics,
+            totalCasesSolved: prev.statistics.totalCasesSolved.add(1),
+            totalRPEarned: prev.statistics.totalRPEarned.add(currentCase.rewards.rp)
+          }
         };
       });
     }
@@ -1552,7 +1628,12 @@ export default function Home() {
     setGameState(prev => ({
       ...prev,
       respectPoints: prev.respectPoints.add(finalClickValue),
-      totalRP: prev.totalRP.add(finalClickValue)
+      totalRP: prev.totalRP.add(finalClickValue),
+      statistics: {
+        ...prev.statistics,
+        totalClicks: prev.statistics.totalClicks.add(1),
+        totalRPEarned: prev.statistics.totalRPEarned.add(finalClickValue)
+      }
     }));
 
     const rect = event.currentTarget.getBoundingClientRect();
@@ -1790,7 +1871,11 @@ export default function Home() {
         equipment: prev.equipment, // Keep equipment collection
         equippedItems: prev.equippedItems, // Keep equipped items
         soundSettings: prev.soundSettings, // Keep sound settings
-        themeSettings: prev.themeSettings // Keep theme settings
+        themeSettings: prev.themeSettings, // Keep theme settings
+        statistics: {
+          ...prev.statistics,
+          totalPrestigeCount: prev.statistics.totalPrestigeCount.add(1)
+        } // Keep and update statistics
       }));
     }
   };
@@ -1890,7 +1975,14 @@ export default function Home() {
         a.id === achievementId ? { ...a, claimed: true } : a
       );
       
-      let updatedState = { ...prev, achievements: updatedAchievements };
+      let updatedState = { 
+        ...prev, 
+        achievements: updatedAchievements,
+        statistics: {
+          ...prev.statistics,
+          totalAchievementsUnlocked: prev.statistics.totalAchievementsUnlocked.add(1)
+        }
+      };
       
       // Apply rewards
       switch (achievement.reward.type) {
@@ -2008,6 +2100,23 @@ export default function Home() {
             secondary: '#1e40af',
             accent: '#fbbf24'
           }
+        },
+        statistics: {
+          totalClicks: new Decimal(0),
+          totalUpgradesPurchased: new Decimal(0),
+          totalCasesSolved: new Decimal(0),
+          totalAchievementsUnlocked: new Decimal(0),
+          totalPrestigeCount: new Decimal(0),
+          sessionsPlayed: new Decimal(1),
+          currentStreak: new Decimal(0),
+          bestClicksPerSecond: 0,
+          totalTimeInRanks: {},
+          firstPlayDate: Date.now(),
+          lastPlayDate: Date.now(),
+          totalRPEarned: new Decimal(0),
+          totalRPSpent: new Decimal(0),
+          averageSessionLength: 0,
+          longestSession: 0
         }
       });
     }
@@ -2037,6 +2146,11 @@ export default function Home() {
           upgrades: {
             ...prev.upgrades,
             [upgradeType]: prev.upgrades[upgradeType].add(quantity)
+          },
+          statistics: {
+            ...prev.statistics,
+            totalUpgradesPurchased: prev.statistics.totalUpgradesPurchased.add(quantity),
+            totalRPSpent: prev.statistics.totalRPSpent.add(cost)
           }
         };
 
@@ -3106,6 +3220,12 @@ export default function Home() {
                 </div>
                 
                 <button
+                  onClick={() => setShowStatsModal(true)}
+                  className="w-full p-2 bg-indigo-600 hover:bg-indigo-500 rounded text-sm font-semibold transition-colors"
+                >
+                  📊 Statistics
+                </button>
+                <button
                   onClick={saveGame}
                   className="w-full p-2 bg-green-600 hover:bg-green-500 rounded text-sm font-semibold transition-colors"
                 >
@@ -3367,6 +3487,201 @@ export default function Home() {
                     </div>
                   ))}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Statistics Modal */}
+      {showStatsModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-gray-900 rounded-lg p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto border border-gray-600">
+            <div className="flex justify-between items-center mb-6">
+              <h2 className="text-2xl font-bold text-white">📊 Statistics & Analytics</h2>
+              <button
+                onClick={() => setShowStatsModal(false)}
+                className="text-gray-400 hover:text-white text-xl font-bold"
+              >
+                ✕
+              </button>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {/* Core Performance Metrics */}
+              <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                <h3 className="text-lg font-bold text-blue-400 mb-3">🎯 Performance</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-300">Total Clicks:</span>
+                    <span className="text-white font-semibold">{formatNumber(gameState.statistics.totalClicks)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-300">Total RP Earned:</span>
+                    <span className="text-green-400 font-semibold">{formatNumber(gameState.statistics.totalRPEarned)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-300">Total RP Spent:</span>
+                    <span className="text-red-400 font-semibold">{formatNumber(gameState.statistics.totalRPSpent)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-300">Net Worth:</span>
+                    <span className="text-yellow-400 font-semibold">{formatNumber(gameState.statistics.totalRPEarned.sub(gameState.statistics.totalRPSpent))}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-300">Click Efficiency:</span>
+                    <span className="text-blue-400 font-semibold">
+                      {gameState.statistics.totalClicks.gt(0) 
+                        ? formatNumber(gameState.statistics.totalRPEarned.div(gameState.statistics.totalClicks))
+                        : '0'} RP/click
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Progression Metrics */}
+              <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                <h3 className="text-lg font-bold text-green-400 mb-3">📈 Progression</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-300">Current Rank:</span>
+                    <span className="text-yellow-400 font-semibold">{gameState.rank}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-300">Upgrades Purchased:</span>
+                    <span className="text-white font-semibold">{formatNumber(gameState.statistics.totalUpgradesPurchased)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-300">Cases Solved:</span>
+                    <span className="text-blue-400 font-semibold">{formatNumber(gameState.statistics.totalCasesSolved)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-300">Achievements:</span>
+                    <span className="text-purple-400 font-semibold">{formatNumber(gameState.statistics.totalAchievementsUnlocked)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-300">Prestiges:</span>
+                    <span className="text-orange-400 font-semibold">{formatNumber(gameState.statistics.totalPrestigeCount)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Session Statistics */}
+              <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                <h3 className="text-lg font-bold text-purple-400 mb-3">⏱️ Sessions</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-300">Sessions Played:</span>
+                    <span className="text-white font-semibold">{formatNumber(gameState.statistics.sessionsPlayed)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-300">Total Play Time:</span>
+                    <span className="text-blue-400 font-semibold">
+                      {Math.floor(gameState.playTime / 3600)}h {Math.floor((gameState.playTime % 3600) / 60)}m
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-300">First Played:</span>
+                    <span className="text-gray-400 font-semibold">
+                      {new Date(gameState.statistics.firstPlayDate).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-300">Last Played:</span>
+                    <span className="text-gray-400 font-semibold">
+                      {new Date(gameState.statistics.lastPlayDate).toLocaleDateString()}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-300">Avg Session:</span>
+                    <span className="text-green-400 font-semibold">
+                      {gameState.statistics.averageSessionLength > 0 
+                        ? `${Math.floor(gameState.statistics.averageSessionLength / 60)}m ${gameState.statistics.averageSessionLength % 60}s`
+                        : 'N/A'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Efficiency Analysis */}
+              <div className="bg-gray-800 rounded-lg p-4 border border-gray-700 md:col-span-2">
+                <h3 className="text-lg font-bold text-orange-400 mb-3">🚀 Efficiency Analysis</h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <div className="text-gray-300 mb-2">Current Income Breakdown:</div>
+                    <div className="space-y-1">
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Click Value:</span>
+                        <span className="text-white">{formatNumber(gameState.clickValue)} RP</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Passive Income:</span>
+                        <span className="text-green-400">{formatNumber(gameState.passiveIncome)} RP/s</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-400">Passive vs Click Ratio:</span>
+                        <span className="text-blue-400">
+                          {gameState.clickValue.gt(0) 
+                            ? `${gameState.passiveIncome.div(gameState.clickValue).toFixed(2)}:1`
+                            : 'N/A'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-gray-300 mb-2">Optimization Insights:</div>
+                    <div className="space-y-1 text-xs">
+                      {gameState.passiveIncome.div(gameState.clickValue).lt(10) && (
+                        <div className="text-yellow-400">💡 Consider investing in passive income generators</div>
+                      )}
+                      {gameState.statistics.totalCasesSolved.lt(5) && (
+                        <div className="text-blue-400">🔍 Try solving more cases for bonus rewards</div>
+                      )}
+                      {gameState.statistics.totalUpgradesPurchased.lt(20) && (
+                        <div className="text-green-400">⬆️ More upgrades = better progression</div>
+                      )}
+                      {gameState.legacyPoints.gt(0) && gameState.statistics.totalPrestigeCount.eq(0) && (
+                        <div className="text-purple-400">🔄 Consider your first prestige for permanent bonuses</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Achievement Progress */}
+              <div className="bg-gray-800 rounded-lg p-4 border border-gray-700">
+                <h3 className="text-lg font-bold text-yellow-400 mb-3">🏆 Achievements</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-gray-300">Completion Rate:</span>
+                    <span className="text-yellow-400 font-semibold">
+                      {((gameState.achievements.filter(a => a.unlocked).length / gameState.achievements.length) * 100).toFixed(1)}%
+                    </span>
+                  </div>
+                  <div className="w-full bg-gray-700 rounded-full h-2">
+                    <div 
+                      className="bg-yellow-400 h-2 rounded-full transition-all duration-300"
+                      style={{ 
+                        width: `${(gameState.achievements.filter(a => a.unlocked).length / gameState.achievements.length) * 100}%` 
+                      }}
+                    ></div>
+                  </div>
+                  <div className="text-gray-400 text-xs">
+                    {gameState.achievements.filter(a => a.unlocked).length} / {gameState.achievements.length} unlocked
+                  </div>
+                  <div className="text-gray-400 text-xs">
+                    {gameState.achievements.filter(a => a.claimed).length} / {gameState.achievements.filter(a => a.unlocked).length} claimed
+                  </div>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex justify-center mt-6">
+              <button
+                onClick={() => setShowStatsModal(false)}
+                className="px-6 py-2 bg-gray-700 hover:bg-gray-600 rounded text-white font-semibold transition-colors"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
