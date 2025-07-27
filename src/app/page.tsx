@@ -2339,7 +2339,7 @@ export default function Home() {
                 >
                   <div className="font-semibold text-sm">🤖 AI System ({gameState.upgrades.automation.toString()})</div>
                   <div className="text-xs text-purple-200">
-                    {purchaseQuantity === 1 ? '+50% passive income' : `+${(purchaseQuantity === 'max' ? getMaxAffordableQuantity('automation', gameState.upgrades.automation, gameState.respectPoints) : new Decimal(purchaseQuantity)).mul(50).toString()}% passive income`}
+                    {purchaseQuantity === 1 ? '+50% passive income' : `+${(purchaseQuantity === 'max' ? getMaxAffordableQuantity('automation', gameState.upgrades.automation, gameState.respectPoints) : new Decimal(purchaseQuantity)).mul(50).toString()}% passive rank`}
                   </div>
                   <div className="text-xs text-yellow-300">
                     Cost: {formatNumber(
@@ -2372,7 +2372,7 @@ export default function Home() {
                   {gameState.legacyPoints.gt(0) && (
                     <>
                       <div className="flex justify-between">
-                        <span>Income Bonus:</span>
+                        <span>Rank Gain Bonus:</span>
                         <span className="text-green-300">+{getLegacyMultiplier().sub(1).mul(100).toFixed(0)}%</span>
                       </div>
                       <div className="flex justify-between">
@@ -2638,7 +2638,7 @@ export default function Home() {
                   <span>{formatNumber(gameState.clickValue)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span>Passive Income:</span>
+                  <span>Passive Rank Gain:</span>
                   <span>{formatNumber(gameState.passiveIncome)}/sec</span>
                 </div>
                 <div className="flex justify-between">
