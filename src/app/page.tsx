@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Decimal from "break_eternity.js";
 
 interface Achievement {
@@ -118,6 +118,13 @@ interface GameState {
   }[];
   equipment: EquipmentItem[];
   equippedItems: EquipmentSlots;
+  soundSettings: {
+    masterVolume: number;
+    sfxEnabled: boolean;
+    ambientEnabled: boolean;
+    sfxVolume: number;
+    ambientVolume: number;
+  };
 }
 
 const RANKS = [
@@ -763,6 +770,13 @@ export default function Home() {
       vest: null,
       vehicle: null,
       gadget: null
+    },
+    soundSettings: {
+      masterVolume: 0.7,
+      sfxEnabled: true,
+      ambientEnabled: true,
+      sfxVolume: 0.8,
+      ambientVolume: 0.3
     }
   });
 
@@ -779,6 +793,96 @@ export default function Home() {
   const [sequenceAnswer, setSequenceAnswer] = useState<number[]>([]);
   const [showEquipmentModal, setShowEquipmentModal] = useState(false);
   const [selectedEquipmentType, setSelectedEquipmentType] = useState<'radio' | 'badge' | 'weapon' | 'vest' | 'vehicle' | 'gadget' | null>(null);
+
+  // Sound Management
+  const audioContext = useRef<AudioContext | null>(null);
+  const ambientAudio = useRef<HTMLAudioElement | null>(null);
+
+  const initializeAudio = useCallback(() => {
+    if (!audioContext.current) {
+      const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (AudioContextClass) {
+        audioContext.current = new AudioContextClass();
+      }
+    }
+  }, []);
+
+  const playSound = useCallback((type: 'click' | 'upgrade' | 'achievement' | 'case_success' | 'case_fail' | 'rank_up') => {
+    if (!gameState.soundSettings.sfxEnabled || !isLoaded) return;
+    
+    initializeAudio();
+    if (!audioContext.current) return;
+
+    const volume = gameState.soundSettings.masterVolume * gameState.soundSettings.sfxVolume;
+    
+    // Create different sound frequencies for different actions
+    const soundConfig = {
+      click: { freq: 800, duration: 0.1, wave: 'sine' as OscillatorType },
+      upgrade: { freq: 1000, duration: 0.3, wave: 'square' as OscillatorType },
+      achievement: { freq: 1200, duration: 0.5, wave: 'sawtooth' as OscillatorType },
+      case_success: { freq: 900, duration: 0.4, wave: 'triangle' as OscillatorType },
+      case_fail: { freq: 400, duration: 0.3, wave: 'sawtooth' as OscillatorType },
+      rank_up: { freq: 1500, duration: 0.6, wave: 'sine' as OscillatorType }
+    };
+
+    const config = soundConfig[type];
+    if (!config) return;
+
+    try {
+      const oscillator = audioContext.current.createOscillator();
+      const gainNode = audioContext.current.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(audioContext.current.destination);
+      
+      oscillator.type = config.wave;
+      oscillator.frequency.setValueAtTime(config.freq, audioContext.current.currentTime);
+      
+      gainNode.gain.setValueAtTime(0, audioContext.current.currentTime);
+      gainNode.gain.linearRampToValueAtTime(volume * 0.3, audioContext.current.currentTime + 0.01);
+      gainNode.gain.exponentialRampToValueAtTime(0.001, audioContext.current.currentTime + config.duration);
+      
+      oscillator.start(audioContext.current.currentTime);
+      oscillator.stop(audioContext.current.currentTime + config.duration);
+    } catch (e) {
+      console.warn('Audio playback failed:', e);
+    }
+  }, [gameState.soundSettings, isLoaded, initializeAudio]);
+
+  const startAmbientAudio = useCallback(() => {
+    if (!gameState.soundSettings.ambientEnabled || !isLoaded) return;
+    
+    if (!ambientAudio.current) {
+      // Create a simple ambient sound using data URL (soft white noise)
+      const ambientSound = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEASLsAAIhOAQACABAAZGF0YQAAAAA=";
+      ambientAudio.current = new Audio(ambientSound);
+      ambientAudio.current.loop = true;
+      ambientAudio.current.volume = gameState.soundSettings.masterVolume * gameState.soundSettings.ambientVolume;
+    }
+    
+    if (ambientAudio.current.paused) {
+      ambientAudio.current.play().catch(e => console.warn('Ambient audio failed:', e));
+    }
+  }, [gameState.soundSettings, isLoaded]);
+
+  const stopAmbientAudio = useCallback(() => {
+    if (ambientAudio.current && !ambientAudio.current.paused) {
+      ambientAudio.current.pause();
+    }
+  }, []);
+
+  // Update ambient audio volume when settings change
+  useEffect(() => {
+    if (ambientAudio.current) {
+      ambientAudio.current.volume = gameState.soundSettings.masterVolume * gameState.soundSettings.ambientVolume;
+      
+      if (gameState.soundSettings.ambientEnabled && isLoaded) {
+        startAmbientAudio();
+      } else {
+        stopAmbientAudio();
+      }
+    }
+  }, [gameState.soundSettings, isLoaded, startAmbientAudio, stopAmbientAudio]);
 
   useEffect(() => {
     const savedGame = localStorage.getItem('cop-clicker-save');
@@ -886,6 +990,17 @@ export default function Home() {
         
         if (!loadedState.rank) {
           loadedState.rank = RANKS[0].name;
+        }
+        
+        // Handle sound settings for backward compatibility
+        if (!loadedState.soundSettings) {
+          loadedState.soundSettings = {
+            masterVolume: 0.7,
+            sfxEnabled: true,
+            ambientEnabled: true,
+            sfxVolume: 0.8,
+            ambientVolume: 0.3
+          };
         }
         
         // Recalculate values to ensure consistency
@@ -1123,6 +1238,9 @@ export default function Home() {
         explanation: currentCase.explanation
       });
     }
+    
+    // Play case result sound
+    playSound(isCorrect ? 'case_success' : 'case_fail');
 
     if (isCorrect) {
       // Mark case as completed and give rewards
@@ -1354,6 +1472,9 @@ export default function Home() {
     const equipmentBonuses = getEquipmentBonuses();
     const equipmentClickBonus = new Decimal(equipmentBonuses.clickPower);
     const finalClickValue = gameState.clickValue.add(equipmentClickBonus).mul(multipliers.clickMultiplier);
+    
+    // Play click sound
+    playSound('click');
     
     setGameState(prev => ({
       ...prev,
@@ -1594,7 +1715,8 @@ export default function Home() {
         randomEvents: prev.randomEvents, // Keep events
         activeEffects: [], // Clear active effects on prestige
         equipment: prev.equipment, // Keep equipment collection
-        equippedItems: prev.equippedItems // Keep equipped items
+        equippedItems: prev.equippedItems, // Keep equipped items
+        soundSettings: prev.soundSettings // Keep sound settings
       }));
     }
   };
@@ -1685,6 +1807,9 @@ export default function Home() {
   const claimAchievement = (achievementId: string) => {
     const achievement = gameState.achievements.find(a => a.id === achievementId);
     if (!achievement || !achievement.unlocked || achievement.claimed) return;
+    
+    // Play achievement sound
+    playSound('achievement');
     
     setGameState(prev => {
       const updatedAchievements = prev.achievements.map(a => 
@@ -1794,6 +1919,13 @@ export default function Home() {
           vest: null,
           vehicle: null,
           gadget: null
+        },
+        soundSettings: {
+          masterVolume: 0.7,
+          sfxEnabled: true,
+          ambientEnabled: true,
+          sfxVolume: 0.8,
+          ambientVolume: 0.3
         }
       });
     }
@@ -1813,6 +1945,9 @@ export default function Home() {
     const cost = getBulkUpgradeCost(upgradeType, gameState.upgrades[upgradeType], quantity);
     
     if (gameState.respectPoints.gte(cost)) {
+      // Play upgrade sound
+      playSound('upgrade');
+      
       setGameState(prev => {
         const newState = {
           ...prev,
@@ -1879,6 +2014,9 @@ export default function Home() {
       : new Decimal(Infinity);
     
     if (nextRankIndex < RANKS.length && gameState.respectPoints.gte(adjustedRequirement)) {
+      // Play rank up sound
+      playSound('rank_up');
+      
       setGameState(prev => {
         const newState = { ...prev, rank: RANKS[nextRankIndex].name };
         const rankMultiplier = new Decimal(1 + (nextRankIndex * 0.25));
@@ -1905,7 +2043,7 @@ export default function Home() {
         return newState;
       });
     }
-  }, [gameState, getRankRequirementReduction, setGameState]);
+  }, [gameState, getRankRequirementReduction, setGameState, playSound]);
 
   const getCurrentRankInfo = () => {
     if (!gameState?.rank) return { current: RANKS[0], next: RANKS[1], progress: 0, adjustedRequirement: new Decimal(0) };
@@ -2699,7 +2837,83 @@ export default function Home() {
                 )}
               </div>
               
-              <div className="mt-4 space-y-2">
+              <div className="mt-4 space-y-4">
+                {/* Sound Settings */}
+                <div className="space-y-3">
+                  <h4 className="text-sm font-bold text-gray-200">🔊 Sound Settings</h4>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs text-gray-300">Master Volume</label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.1"
+                        value={gameState.soundSettings.masterVolume}
+                        onChange={(e) => setGameState(prev => ({
+                          ...prev,
+                          soundSettings: {
+                            ...prev.soundSettings,
+                            masterVolume: parseFloat(e.target.value)
+                          }
+                        }))}
+                        className="w-20 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer"
+                      />
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs text-gray-300">Sound Effects</label>
+                      <button
+                        onClick={() => setGameState(prev => ({
+                          ...prev,
+                          soundSettings: {
+                            ...prev.soundSettings,
+                            sfxEnabled: !prev.soundSettings.sfxEnabled
+                          }
+                        }))}
+                        className={`px-2 py-1 rounded text-xs font-semibold transition-colors ${
+                          gameState.soundSettings.sfxEnabled 
+                            ? 'bg-green-600 hover:bg-green-500 text-white' 
+                            : 'bg-gray-600 hover:bg-gray-500 text-gray-200'
+                        }`}
+                      >
+                        {gameState.soundSettings.sfxEnabled ? 'ON' : 'OFF'}
+                      </button>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs text-gray-300">Ambient Audio</label>
+                      <button
+                        onClick={() => setGameState(prev => ({
+                          ...prev,
+                          soundSettings: {
+                            ...prev.soundSettings,
+                            ambientEnabled: !prev.soundSettings.ambientEnabled
+                          }
+                        }))}
+                        className={`px-2 py-1 rounded text-xs font-semibold transition-colors ${
+                          gameState.soundSettings.ambientEnabled 
+                            ? 'bg-green-600 hover:bg-green-500 text-white' 
+                            : 'bg-gray-600 hover:bg-gray-500 text-gray-200'
+                        }`}
+                      >
+                        {gameState.soundSettings.ambientEnabled ? 'ON' : 'OFF'}
+                      </button>
+                    </div>
+                    
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs text-gray-300">Test Sound</label>
+                      <button
+                        onClick={() => playSound('achievement')}
+                        className="px-2 py-1 rounded text-xs font-semibold bg-blue-600 hover:bg-blue-500 text-white transition-colors"
+                      >
+                        🔊 Test
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                
                 <button
                   onClick={saveGame}
                   className="w-full p-2 bg-green-600 hover:bg-green-500 rounded text-sm font-semibold transition-colors"
