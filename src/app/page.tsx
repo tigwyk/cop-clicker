@@ -2127,6 +2127,26 @@ export default function Home() {
   // Export/Import Save Functionality
   const exportSave = useCallback(() => {
     try {
+      // Helper function to safely serialize objects with Decimal values
+      const serializeForExport = (obj: unknown): unknown => {
+        if (obj && typeof obj === 'object') {
+          if (obj.toString && typeof obj.toString === 'function' && obj.constructor && obj.constructor.name === 'Decimal') {
+            return obj.toString();
+          }
+          if (Array.isArray(obj)) {
+            return obj.map(serializeForExport);
+          }
+          const result: Record<string, unknown> = {};
+          for (const key in obj) {
+            if (Object.prototype.hasOwnProperty.call(obj, key)) {
+              result[key] = serializeForExport((obj as Record<string, unknown>)[key]);
+            }
+          }
+          return result;
+        }
+        return obj;
+      };
+
       const saveData = {
         respectPoints: gameState.respectPoints.toString(),
         clickValue: gameState.clickValue.toString(),
@@ -2150,12 +2170,12 @@ export default function Home() {
           wisdom: gameState.legacyUpgrades.wisdom.toString(),
           equipment: gameState.legacyUpgrades.equipment.toString()
         },
-        achievements: gameState.achievements,
-        caseFiles: gameState.caseFiles,
-        randomEvents: gameState.randomEvents,
-        activeEffects: gameState.activeEffects,
-        equipment: gameState.equipment,
-        equippedItems: gameState.equippedItems,
+        achievements: serializeForExport(gameState.achievements),
+        caseFiles: serializeForExport(gameState.caseFiles),
+        randomEvents: serializeForExport(gameState.randomEvents),
+        activeEffects: serializeForExport(gameState.activeEffects),
+        equipment: serializeForExport(gameState.equipment),
+        equippedItems: serializeForExport(gameState.equippedItems),
         soundSettings: gameState.soundSettings,
         themeSettings: gameState.themeSettings,
         statistics: {
@@ -2179,7 +2199,9 @@ export default function Home() {
         version: '1.0'
       };
       
-      const exportString = btoa(JSON.stringify(saveData));
+      // Test JSON serialization first
+      const jsonString = JSON.stringify(saveData);
+      const exportString = btoa(jsonString);
       
       // Create and trigger download
       const blob = new Blob([exportString], { type: 'text/plain' });
@@ -2195,7 +2217,8 @@ export default function Home() {
       alert('Save exported successfully!');
     } catch (error) {
       console.error('Export failed:', error);
-      alert('Failed to export save data. Please try again.');
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      alert(`Failed to export save data: ${errorMessage}. Please try again.`);
     }
   }, [gameState]);
 
